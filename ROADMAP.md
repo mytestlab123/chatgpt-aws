@@ -2,13 +2,13 @@
 
 ## Now
 
-- Define and prove one small outcome.
+- Merge the documented two-direction proof and comparison.
 
 ## Next
 
-- Record the next validated milestone.
+- Build one persistent but low-cost IaC stack and let AWS MCP independently verify deployed state and deliberate drift.
+- Test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP`.
 
 ## Later
 
-- Keep only ideas that still matter after the current milestone.
-
+- Add a ChatGPT Site or other UI as a control surface after the backend execution paths are stable.

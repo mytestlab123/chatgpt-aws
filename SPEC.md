@@ -1,61 +1,60 @@
 # Specification
 
-Status: DRAFT
-Context: `<PERSONAL | WORK>`
-Environment: `<LOCAL | LAB | DEV | NONPROD | PROD>`
+Status: ACTIVE
+Context: PERSONAL
+Environment: LAB
 
 ## Objective
 
-Describe the problem and intended result.
+Prove, compare, and document practical ways for ChatGPT to control a personal AWS account.
 
 ## Outcome
 
-Describe the usable milestone/release package to deliver.
+A verified two-path lab:
+
+1. direct ChatGPT -> AWS Core MCP -> AWS API operations;
+2. ChatGPT/GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS.
 
 ## Authorized
 
-List the actions that may proceed without repeated approval while this SPEC is ACTIVE and the owning Issue/instruction remains in scope.
+While Issue #1 remains in scope, ChatGPT may perform bounded personal-LAB experiments using temporary, reversible, low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows, and documentation; create or update lab-only IAM roles/policies required by these experiments; verify results; and clean up experiment resources without repeated resource-by-resource approval.
 
-For `PERSONAL` + `LAB`/`DEV`, explicitly authorized deterministic work may include repo-owned implementation, deployment, cloud resource creation/mutation, validation, reset, and cleanup without asking resource-by-resource.
-
-For `WORK` and especially `PROD`, grant only the bounded authority actually intended. Read-only investigation may be standing authority when explicitly stated; mutation requires proportionate approval in this SPEC or the current user instruction.
-
-Repository visibility is not an authority signal. Private does not mean personal; public does not mean unrestricted.
+`amitkarpe/assignment-cicd` is authorized only for the related GitHub/OIDC/IaC proof.
 
 ## MUST
 
-- List required behavior and acceptance-critical invariants.
+- Record which execution path performed each experiment.
+- Verify every cloud mutation with provider readback.
+- Clean up temporary proof resources unless explicitly retained.
+- Keep durable learning and code in Git.
+- Prefer OIDC over stored AWS access keys for GitHub Actions.
 
 ## MUST NOT
 
-- List hard scope, security, data, publication, production, destructive, or cost boundaries.
+- Enter work, corporate, non-personal, or production AWS environments.
+- Commit credentials, OAuth tokens, access keys, private keys, or authentication state.
+- Create public application endpoints, databases with real data, or intentionally expensive resources for this milestone.
+- Leave temporary experiment resources running without documenting why.
 
 ## Phases / Milestones
 
-Group related work into a cohesive useful package, normally several tightly coupled tasks or 2-3 phases sharing one outcome and trust boundary.
-
-- Phase 1: `<outcome>`
-- Phase 2: `<outcome>`
-- Phase 3: `<outcome>`
-
-Do not stop between routine approved phases merely to request permission again.
+- Phase 1: prove direct AWS MCP read/write and cleanup.
+- Phase 2: prove GitHub Actions OIDC and Terraform provisioning/cleanup.
+- Phase 3: compare strengths, limits, controls, and choose the default operating model.
 
 ## Verification
 
-State the smallest meaningful proof: focused tests/checks, runtime/provider readback, user-path validation, and cleanup/retention state when applicable.
+- AWS API readback for direct MCP operations.
+- Successful GitHub Actions job and STS identity for OIDC.
+- Terraform apply + provider/AWS verification + destroy for IaC.
+- Final AWS readback confirms temporary proof resources are absent.
 
 ## Stop Gates
 
-Stop and ask only when required by a real boundary, for example:
-
-- target repository/account/environment does not match the approved scope;
-- work would enter PROD or another higher-risk environment without authority;
-- destructive/non-recoverable data loss, credential/secret mutation, public exposure, or material cost is not explicitly approved;
-- implementation would materially widen architecture, security/trust boundary, or external integration beyond the milestone;
-- required validation fails or current state is ambiguous/unsafe.
-
-Technical failure remains a blocker even when mutation is otherwise authorized.
+Stop only if the target account/repository is not this personal lab, the experiment would create material cost/public exposure/non-recoverable data, authentication or permissions no longer match expected scope, cleanup cannot be verified, or validation fails in a way that makes further mutation unsafe.
 
 ## Acceptance
 
-List concise conditions that make the whole milestone reviewable and complete.
+- Both paths have at least one real AWS mutation proof.
+- Temporary resources are cleaned up.
+- Learning is documented with a clear recommendation for future use.

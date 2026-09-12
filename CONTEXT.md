@@ -1,32 +1,31 @@
 # Context
 
-Status: NOT_INITIALIZED
+Status: ACTIVE
 
 ## Project Identity
 
-- Project: `<project name>`
-- Primary Repository: `<owner/repo>`
-- Primary Directory: `<optional local path>`
-- Authorized Related Repositories: `<optional list>`
-
-Optional session metadata may be recorded when useful, but it is coordination context only:
-
-- Codex Thread: `<optional>`
-- Codex Session: `<optional UUID>`
-- ChatGPT Project/Chat: `<optional>`
-- ChatGPT Session/URL: `<optional>`
+- Project: ChatGPT AWS Lab
+- Primary Repository: `mytestlab123/chatgpt-aws`
+- Authorized Related Repository: `amitkarpe/assignment-cicd` for the GitHub Actions/OIDC comparison path
+- Context: PERSONAL
+- Environment: LAB
 
 ## Current Truth
 
-- Repository created from `repo-starter`.
-- Initialization interview not yet completed.
+- ChatGPT has authenticated GitHub write access to both lab repositories.
+- AWS Core MCP is authenticated and can execute AWS API calls under the current IAM identity.
+- Direct MCP read tests passed across STS, EC2, S3, IAM, Lambda, CloudFormation, ECS, ECR, SSM, CloudWatch, DynamoDB, and Logs.
+- Direct MCP mutation tests passed for temporary SSM and S3 lifecycles with cleanup verified.
+- `amitkarpe/assignment-cicd` PR #1 proved GitHub Actions -> OIDC -> AWS and is merged.
+- `amitkarpe/assignment-cicd` Issue #2 / PR #3 proved GitHub Actions -> OIDC -> Terraform -> temporary S3 -> destroy; workflow run `34673717208` passed and independent AWS MCP cleanup verification passed.
 
 ## Active Work
 
-- Issue: `<none>`
-- PR: `<none>`
-- Current milestone: `<none>`
+- Issue: #1
+- PR: #2
+- Branch: `direction-b-direct-mcp`
+- Current milestone: finalize and merge the documented two-direction comparison.
 
 ## Next Action
 
-- Run the short `INIT.md` interview, then update project identity, `SPEC.md`, `ENV.md`, README purpose, and the first useful milestone.
+- Merge PR #2 when reviewable, then choose the next experiment: persistent IaC + MCP drift verification or MCP-specific IAM controls.
