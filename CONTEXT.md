@@ -30,16 +30,18 @@ Status: ACTIVE
 - PR #7 workflow `34675498728` detected the drift with exact plan `0 to add, 1 to change, 0 to destroy`.
 - PR #7 merged; main workflow `34675632976` applied successfully and provider readback passed.
 - Independent AWS Core MCP final verification confirmed `/chatgpt-aws/drift-demo` is restored to `desired-v1`, version `3`.
+- PR #8 final evidence plan `34675748201` reported `No changes. Your infrastructure matches the configuration.`; final main workflow `34675800623` also passed.
+- Issue #5 is closed as completed.
 - CloudTrail exposed an ID-enriched GitHub WebIdentity principal during the initial OIDC trust failure; the reusable troubleshooting lesson is documented in `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`.
 - Full drift/reconciliation evidence is in `docs/DRIFT_DEMO.md`.
 
 ## Active Work
 
-- Issue: #5 — ready to close after final evidence commit/PR.
-- Current milestone: persistent IaC + AWS MCP drift detection and repair is **PASS**.
+- Issue: `<none>`
+- PR: `<none>`
+- Current milestone: none; the persistent IaC + AWS MCP drift milestone is complete.
 
 ## Next Action
 
-1. Merge the final evidence update and close Issue #5.
-2. Next preferred milestone: test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP`.
-3. In parallel or afterward, let the separate `lab1_agent` ChatGPT session consume this private knowledge and create its own repo-specific OIDC role only when its project milestone requires AWS deployment.
+- Preferred next milestone: test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP`.
+- Separately, the `lab1_agent` ChatGPT session can consume this private knowledge and create its own repo-specific OIDC role only when its project milestone authorizes AWS deployment.
