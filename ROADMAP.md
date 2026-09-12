@@ -2,14 +2,13 @@
 
 ## Now
 
-- Complete Direction B direct AWS MCP proof and document comparison.
-- Complete Direction A GitHub OIDC + Terraform proof in `amitkarpe/assignment-cicd`.
+- Merge the documented two-direction proof and comparison.
 
 ## Next
 
-- Build one persistent but low-cost IaC stack and let AWS MCP independently verify drift and runtime state.
+- Build one persistent but low-cost IaC stack and let AWS MCP independently verify deployed state and deliberate drift.
 - Test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP`.
 
 ## Later
 
-- Add a ChatGPT Site or other UI as a control surface after the backend execution paths are proven.
+- Add a ChatGPT Site or other UI as a control surface after the backend execution paths are stable.
