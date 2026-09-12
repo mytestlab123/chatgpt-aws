@@ -26,8 +26,6 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_region" "current" {}
-
 locals {
   project       = "chatgpt-aws"
   bucket_name   = "chatgpt-aws-automation-${data.aws_caller_identity.current.account_id}"
@@ -193,11 +191,11 @@ resource "aws_lambda_function" "automation" {
 }
 
 resource "aws_lambda_permission" "allow_s3" {
-  statement_id  = "AllowExecutionFromS3"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.automation.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.automation.arn
+  statement_id   = "AllowExecutionFromS3"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.automation.function_name
+  principal      = "s3.amazonaws.com"
+  source_arn     = aws_s3_bucket.automation.arn
   source_account = data.aws_caller_identity.current.account_id
 }
 
@@ -218,8 +216,8 @@ resource "aws_cloudwatch_event_rule" "automation" {
   description = "Custom event trigger for ChatGPT AWS automation lab"
 
   event_pattern = jsonencode({
-    source      = ["chatgpt.aws.lab"]
-    detail-type = ["automation-test"]
+    source        = ["chatgpt.aws.lab"]
+    "detail-type" = ["automation-test"]
   })
 
   tags = local.tags
