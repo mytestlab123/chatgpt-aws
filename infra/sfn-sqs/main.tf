@@ -23,20 +23,20 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  region                    = "ap-southeast-1"
-  account_id                = data.aws_caller_identity.current.account_id
-  queue_name                = "chatgpt-aws-sfn-sqs-smoke"
-  state_machine_name        = "chatgpt-aws-sfn-sqs-smoke"
-  state_machine_arn         = "arn:aws:states:${local.region}:${local.account_id}:stateMachine:${local.state_machine_name}"
-  state_machine_execution   = "arn:aws:states:${local.region}:${local.account_id}:execution:${local.state_machine_name}:*"
-  github_oidc_provider_arn  = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
-  github_org_id             = "58461665"
-  github_repository_id      = "1366899390"
+  region                   = "ap-southeast-1"
+  account_id               = data.aws_caller_identity.current.account_id
+  queue_name               = "chatgpt-aws-sfn-sqs-smoke"
+  state_machine_name       = "chatgpt-aws-sfn-sqs-smoke"
+  state_machine_arn        = "arn:aws:states:${local.region}:${local.account_id}:stateMachine:${local.state_machine_name}"
+  state_machine_execution  = "arn:aws:states:${local.region}:${local.account_id}:execution:${local.state_machine_name}:*"
+  github_oidc_provider_arn = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
+  github_org_id            = "58461665"
+  github_repository_id     = "1366899390"
 }
 
 resource "aws_sqs_queue" "smoke" {
-  name                      = local.queue_name
-  message_retention_seconds = 600
+  name                       = local.queue_name
+  message_retention_seconds  = 600
   visibility_timeout_seconds = 30
 
   tags = {
