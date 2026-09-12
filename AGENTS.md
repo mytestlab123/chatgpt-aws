@@ -6,8 +6,11 @@
 2. `CONTEXT.md`
 3. `INIT.md` only when repository initialization is incomplete
 4. `CHATGPT.md` for ChatGPT/Codex/GitHub collaboration
-5. `ENV.md` when runtime, cloud, host, or tool facts matter
-6. `SPEC.md` before implementation, mutation, deployment, cleanup, or trusted-contract changes
+5. `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` for AWS Core/MCP, GitHub OIDC, verified environment facts, and cross-session reuse
+6. `docs/SESSION_BOOTSTRAP.md` when handing work to another ChatGPT session
+7. `ENV.md` when runtime, cloud, host, or tool facts matter
+8. `SPEC.md` before implementation, mutation, deployment, cleanup, or trusted-contract changes
+9. `docs/EXPERIMENTS.md` when evidence from the proven AWS paths matters
 
 ## Rules
 
@@ -19,6 +22,7 @@
 - Prefer one cohesive PR with related phases/tasks over micro-PRs. Small isolated fixes may remain small.
 - When the current objective is known, short continuation such as `go`, `g`, `.`, `Y`, or `yes` means execute/continue it within existing authority unless Amit explicitly selected plan/review/discussion mode.
 - Before cross-repo mutation, apply the repository-binding guard in `CHATGPT.md`.
+- For AWS work in a new ChatGPT session, re-verify STS caller identity; Git carries knowledge, not authentication.
 
 ## Global Guidance
 
