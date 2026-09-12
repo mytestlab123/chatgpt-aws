@@ -1,0 +1,83 @@
+name: Terraform drift demo
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: chatgpt-aws-drift-demo
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/drift-demo
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-lab
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify assumed identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform format and validate
+        run: |
+          terraform fmt -check
+          terraform validate
+
+      - name: Terraform plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "Terraform plan failed"
+            exit 1
+          fi
+          terraform show -no-color tfplan > plan.txt
+          echo "plan_exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "### Terraform plan" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 0 ]; then
+            echo "No changes." >> "$GITHUB_STEP_SUMMARY"
+          else
+            grep -E '^Plan:|^No changes' plan.txt | tail -1 >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - name: Terraform apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -input=false -auto-approve
+
+      - name: Provider readback after apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          aws ssm get-parameter \
+            --name /chatgpt-aws/drift-demo \
+            --query 'Parameter.{Name:Name,Value:Value,Version:Version}' \
+            --output json
