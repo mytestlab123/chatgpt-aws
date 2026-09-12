@@ -56,6 +56,7 @@ nav:
   - Home: index.md
   - Start Here:
       - Session Bootstrap: SESSION_BOOTSTRAP.md
+      - Fast vs Deterministic Control Paths: CONTROL_PATHS.md
       - Portable AWS + MCP Knowledge: PORTABLE_AWS_MCP_KNOWLEDGE.md
       - Documentation Hosting: HOSTING.md
   - Labs:
@@ -63,6 +64,7 @@ nav:
       - Terraform Drift Demo: DRIFT_DEMO.md
       - Automation + CI/CD Lab: AUTOMATION_CICD_LAB.md
       - Dedicated OIDC + MCP CodeBuild: OIDC_MCP_CODEBUILD_LAB.md
+      - Step Functions + SQS OIDC/MCP: SFN_SQS_OIDC_MCP_LAB.md
 
 extra:
   generator: false
