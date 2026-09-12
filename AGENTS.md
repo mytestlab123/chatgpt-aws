@@ -8,9 +8,10 @@
 4. `CHATGPT.md` for ChatGPT/Codex/GitHub collaboration
 5. `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` for AWS Core/MCP, GitHub OIDC, verified environment facts, and cross-session reuse
 6. `docs/SESSION_BOOTSTRAP.md` when handing work to another ChatGPT session
-7. `ENV.md` when runtime, cloud, host, or tool facts matter
-8. `SPEC.md` before implementation, mutation, deployment, cleanup, or trusted-contract changes
-9. `docs/EXPERIMENTS.md` when evidence from the proven AWS paths matters
+7. `docs/HOSTING.md` when documentation publication, the live docs URL, or GitHub Pages/CloudFront behavior matters
+8. `ENV.md` when runtime, cloud, host, or tool facts matter
+9. `SPEC.md` before implementation, mutation, deployment, cleanup, or trusted-contract changes
+10. `docs/EXPERIMENTS.md` when evidence from the proven AWS paths matters
 
 ## Rules
 
