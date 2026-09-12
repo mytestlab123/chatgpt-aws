@@ -27,10 +27,10 @@ resource "aws_ssm_parameter" "drift_demo" {
   value       = "desired-v1"
 
   tags = {
-    project    = "chatgpt-aws"
-    environment = "lab"
-    purpose    = "drift-demo"
-    managed-by = "terraform"
+    project      = "chatgpt-aws"
+    environment  = "lab"
+    purpose      = "drift-demo"
+    "managed-by" = "terraform"
   }
 }
 
