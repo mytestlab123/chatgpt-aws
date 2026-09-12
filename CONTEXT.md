@@ -23,44 +23,69 @@ Status: ACTIVE
 - Issue #5 drift/reconciliation milestone is VERIFIED / PASS.
 - Issue #9 multi-service automation + CI/CD milestone is VERIFIED / PASS.
 - Issue #18 dedicated OIDC + MCP CodeBuild control-plane milestone is VERIFIED / PASS.
+- Issue #21 deterministic Step Functions + SQS OIDC/MCP milestone is VERIFIED / PASS.
 - Documentation site is live at `https://d36j5fck6lkl41.cloudfront.net/` and Terraform-owned in `infra/docs-site/`.
 
 ## Control-path decision
 
-The preferred long-term model is now explicit:
+The preferred long-term model is:
 
 - **AWS Core MCP** for fastest discovery, troubleshooting, live readback, independent verification, and bounded reversible experiments.
 - **Git + Terraform/IaC + GitHub Actions + OIDC** for durable deterministic infrastructure and deployment.
-- Use the hybrid loop: MCP discovers/verifies; Git/IaC declares; OIDC CI/CD applies; MCP verifies reality again.
+- Preferred hybrid loop: **MCP discover/diagnose -> Git/IaC declare -> OIDC CI/CD apply -> MCP independently verify**.
 - MCP-specific IAM denies are deliberate governance tests, not a limitation of AWS Core MCP. When IAM permits it, MCP mutations are technically possible.
 
 Detailed guidance: `docs/CONTROL_PATHS.md`.
 
-## Active Work — Issue #21
+## Completed Work — Issue #21
 
-Goal: prove the hybrid recommendation with Terraform-owned Step Functions + SQS and a dedicated runtime OIDC role.
+PR #22:
 
-Planned durable resources:
+`https://github.com/mytestlab123/chatgpt-aws/pull/22`
+
+PR plan workflow `34687644771`: **PASS**  
+Terraform plan: `6 to add, 0 to change, 0 to destroy`.
+
+PR #22 squash merge:
+
+`e7a4172d6a8148513f379d9780f8b2569d72e504`
+
+Main workflow `34687707682`, attempt 3: **PASS**.
+
+Retained Terraform-owned resources:
 
 - SQS queue `chatgpt-aws-sfn-sqs-smoke`;
 - Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
 - Step Functions service role `chatgpt-aws-sfn-sqs-smoke`;
-- dedicated GitHub runtime role `github-actions-chatgpt-aws-sfn-lab`.
+- dedicated GitHub runtime role `github-actions-chatgpt-aws-sfn-lab`;
+- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`.
 
-Execution model:
+GitHub OIDC execution:
 
-- existing `github-actions-chatgpt-aws-lab` -> Terraform plan/apply;
-- dedicated `github-actions-chatgpt-aws-sfn-lab` -> StartExecution + execution readback + SQS verification/cleanup;
-- AWS Core MCP -> independent read/diagnose/verify;
-- AWS Core MCP `states:StartExecution` -> deliberately denied only for this lab through `aws:ViaAWSMCPService=true` after the state machine is deployed.
+`arn:aws:states:ap-southeast-1:063884340510:execution:chatgpt-aws-sfn-sqs-smoke:gh-34687707682-3`
 
-The primary Terraform role was extended only for the named queue/state machine and the two named IAM roles needed by Issue #21.
+Final status: `SUCCEEDED`.
+
+AWS Core MCP independently verified `TaskSucceeded`, `ExecutionSucceeded`, runtime/service IAM trust and policies, and final SQS message counts of zero after workflow cleanup.
+
+The PERSONAL/LAB AWS Core identity now has narrow policy `ChatGPTAwsMCPSfnGuard`, denying only `states:StartExecution` for this named state machine when `aws:ViaAWSMCPService=true`.
+
+A first immediate test after `PutUserPolicy` was still allowed because IAM propagation had not completed; its one test message was cleaned up. After a short wait, the same MCP `StartExecution` returned explicit `AccessDenied`, and the queue remained empty.
+
+Terraform least-privilege lessons from the first two main attempts:
+
+- `states:ValidateStateMachineDefinition` is needed by the provider before create/update;
+- `states:ListStateMachineVersions` is needed by provider refresh/readback.
+
+Detailed evidence: `docs/SFN_SQS_OIDC_MCP_LAB.md`.
+
+## Active Work
+
+- Issue #21 final evidence/documentation PR only; no new AWS architecture change is required.
 
 ## Next Action
 
-1. Validate the Issue #21 Terraform plan in PR.
-2. Merge after plan/docs checks pass.
-3. Apply on `main` through the existing Terraform OIDC role.
-4. Run the dedicated Step Functions execution OIDC smoke test and verify the SQS marker/cleanup.
-5. Install the narrow MCP StartExecution guard, then prove MCP read/diagnose remains allowed while direct MCP StartExecution is denied.
-6. Write final execution IDs/evidence back to Git and close Issue #21.
+1. Merge the Issue #21 final evidence PR after checks pass.
+2. Confirm the Material docs deploy and the new control-path/lab pages are live.
+3. Close Issue #21 as completed.
+4. For the next AWS milestone, continue the hybrid model rather than repeating connectivity proofs.

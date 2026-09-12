@@ -23,7 +23,7 @@ A verified hybrid operating model:
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Issue #21 is the active mutation authority for the deterministic Step Functions + SQS lab.
+Issue #21 implementation is complete. New AWS architecture/mutation beyond maintaining the retained Issue #21 lab should have a new owning Issue or current explicit user instruction.
 
 `mytestlab123/lab1_agent` is public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
@@ -35,6 +35,7 @@ Issue #21 is the active mutation authority for the deterministic Step Functions 
 - Prefer GitHub OIDC over static AWS access keys for CI/CD.
 - Use repo-specific/purpose-specific OIDC trust and permissions unless reuse is explicitly reviewed.
 - Use CloudTrail/provider evidence to diagnose federation failures before widening trust.
+- Treat IAM policy changes as eventually consistent; re-read/retry before declaring a new allow/deny control proven.
 - Clean up temporary proof resources unless explicitly retained.
 - Explicitly document retained persistent LAB resources.
 - Write reusable learning back to Git for other ChatGPT sessions.
@@ -90,34 +91,46 @@ Proven control split:
 
 Detailed evidence: `docs/OIDC_MCP_CODEBUILD_LAB.md`.
 
-## Active Milestone — Issue #21
+## Completed Milestone — Issue #21
 
-Goal:
+Proven durable-state path:
 
-`Git/Terraform -> infrastructure OIDC role -> Step Functions + SQS durable state`
+`Git/Terraform -> infrastructure OIDC role -> Step Functions + SQS durable state = PASS`
 
-then:
+Proven runtime path:
 
-`GitHub Actions -> dedicated runtime OIDC role -> Step Functions StartExecution -> SQS marker = ALLOW`
+`GitHub Actions -> dedicated runtime OIDC role -> Step Functions StartExecution -> SQS marker/cleanup = PASS`
 
-while independently proving:
+Proven independent MCP path:
 
-`AWS Core MCP -> state machine / execution / IAM / SQS readback = ALLOW`
+`AWS Core MCP -> state machine / execution / IAM / SQS readback = PASS`
 
-and:
+Proven governance path after IAM propagation:
 
 `AWS Core MCP -> Step Functions StartExecution = DENY when aws:ViaAWSMCPService=true`
 
-Authorized retained resources:
+Key evidence:
+
+- PR #22 plan run `34687644771`: `6 to add, 0 to change, 0 to destroy`.
+- PR #22 merge `e7a4172d6a8148513f379d9780f8b2569d72e504`.
+- main workflow `34687707682`, attempt 3: Terraform + runtime smoke **PASS**.
+- GitHub OIDC execution `gh-34687707682-3`: `SUCCEEDED`.
+- AWS MCP execution history independently contained `TaskSucceeded` and `ExecutionSucceeded`.
+- SQS final message counts returned to zero after deterministic cleanup.
+- first two main attempts exposed provider least-privilege requirements `states:ValidateStateMachineDefinition` and `states:ListStateMachineVersions`.
+- an immediate MCP negative test after `PutUserPolicy` was still allowed before IAM propagation; its message was cleaned up. After a short propagation wait, the same `StartExecution` call returned explicit `AccessDenied`.
+
+Retained Terraform-owned resources:
 
 - SQS queue `chatgpt-aws-sfn-sqs-smoke`;
 - Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
 - Step Functions execution role `chatgpt-aws-sfn-sqs-smoke`;
 - GitHub runtime OIDC role `github-actions-chatgpt-aws-sfn-lab`;
-- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`;
-- narrow MCP StartExecution guard on the PERSONAL/LAB AWS Core identity after deployment.
+- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`.
 
-The durable resources above must be Terraform-owned. Direct MCP remains appropriate for the guard bootstrap, diagnosis, negative test, and independent readback evidence.
+Retained governance control:
+
+- `ChatGPTAwsMCPSfnGuard` on the PERSONAL/LAB AWS Core identity.
 
 Detailed evidence: `docs/SFN_SQS_OIDC_MCP_LAB.md`.
 
@@ -131,6 +144,7 @@ For future milestones use the smallest meaningful combination of:
 - direct provider readback;
 - independent AWS MCP verification;
 - cleanup or explicitly retained-state verification;
+- IAM propagation-aware authorization verification;
 - cross-session documentation update.
 
 ## Stop Gates
@@ -151,7 +165,8 @@ Stop only if:
 - Out-of-band drift detection/reconciliation through IaC.
 - ECR CI/CD artifact flow without static AWS keys.
 - S3 and EventBridge event-driven automation through Lambda/DynamoDB.
-- Terraform provider refresh-permission lesson under least privilege.
-- MCP-origin-specific IAM deny while non-MCP OIDC cleanup remains functional.
+- Terraform provider validation/read/refresh permission lessons under least privilege.
+- MCP-origin-specific IAM deny while non-MCP OIDC cleanup/execution remains functional.
 - Dedicated CI/CD-only execution path where GitHub OIDC can start CodeBuild while AWS MCP remains read/diagnose-only for that action.
+- Terraform-owned orchestration/messaging where GitHub OIDC can start Step Functions while AWS MCP independently verifies and is selectively blocked from direct execution.
 - Independent AWS MCP final verification and durable cross-session knowledge.
