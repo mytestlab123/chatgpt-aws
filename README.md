@@ -13,6 +13,16 @@ The `docs/` knowledge base is published with **Material for MkDocs**.
 
 The existing Markdown paths remain stable so other ChatGPT sessions can continue to reference files such as `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` and `docs/SESSION_BOOTSTRAP.md` directly.
 
+### One-time GitHub Pages setup
+
+For first publication, an administrator must enable Pages for this repository:
+
+`Settings -> Pages -> Build and deployment -> Source -> GitHub Actions`
+
+The connected GitHub app can manage repository files and workflows but does not expose the Pages administration setting. After the one-time setting is enabled, pushes to `main` that change the docs/config automatically build and deploy the site.
+
+> GitHub Pages is publicly accessible even when the source repository is private. Review the documentation content before publishing exact environment/account details publicly.
+
 ## Directions
 
 1. **Direct MCP:** ChatGPT -> AWS Core MCP -> AWS APIs.
