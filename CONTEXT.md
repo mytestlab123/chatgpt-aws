@@ -17,14 +17,15 @@ Status: ACTIVE
 - Direct MCP read tests passed across STS, EC2, S3, IAM, Lambda, CloudFormation, ECS, ECR, SSM, CloudWatch, DynamoDB, and Logs.
 - Direct MCP mutation tests passed for temporary SSM and S3 lifecycles with cleanup verified.
 - `amitkarpe/assignment-cicd` PR #1 proved GitHub Actions -> OIDC -> AWS and is merged.
-- `amitkarpe/assignment-cicd` Issue #2 / PR #3 own the Terraform provisioning proof.
+- `amitkarpe/assignment-cicd` Issue #2 / PR #3 proved GitHub Actions -> OIDC -> Terraform -> temporary S3 -> destroy; workflow run `34673717208` passed and independent AWS MCP cleanup verification passed.
 
 ## Active Work
 
 - Issue: #1
+- PR: #2
 - Branch: `direction-b-direct-mcp`
-- Current milestone: document direct MCP proof and compare it with GitHub OIDC + Terraform.
+- Current milestone: finalize and merge the documented two-direction comparison.
 
 ## Next Action
 
-- Finish and validate Issue #1 documentation, then use the comparison to choose the default operating model for future AWS builds.
+- Merge PR #2 when reviewable, then choose the next experiment: persistent IaC + MCP drift verification or MCP-specific IAM controls.
