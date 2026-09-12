@@ -21,11 +21,13 @@ Verified through live GitHub/AWS APIs on 2026-09-12:
 - Main lab region: `ap-southeast-1`
 - GitHub Actions OIDC provider: `arn:aws:iam::063884340510:oidc-provider/token.actions.githubusercontent.com`
 - Primary repo: `mytestlab123/chatgpt-aws` — **private, active**
-- Cross-session consumer repo: `mytestlab123/lab1_agent` — **private, active**
+- `mytestlab123/lab1_agent` — **public, active, independent**; do not use it as an execution dependency for this repo
 - Primary repo-specific OIDC role: `arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-lab`
+- Dedicated CodeBuild OIDC role: `arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-codebuild-lab`
 - Primary Terraform state bucket: `chatgpt-aws-tfstate-063884340510`
 - Persistent drift-demo resource: SSM parameter `/chatgpt-aws/drift-demo`
-- Persistent automation/CI-CD lab resources: private ECR/S3, Lambda, DynamoDB, EventBridge, CloudWatch Logs, and Lambda IAM role documented in `docs/AUTOMATION_CICD_LAB.md`.
+- Persistent automation/CI-CD lab resources: private ECR/S3, Lambda, DynamoDB, EventBridge, CloudWatch Logs, and Lambda IAM role documented in `docs/AUTOMATION_CICD_LAB.md`
+- Dedicated OIDC/MCP CodeBuild resources documented in `docs/OIDC_MCP_CODEBUILD_LAB.md`
 
 Historical proof role `github-actions-assignment-cicd-chatgpt-lab` remains bound to `amitkarpe/assignment-cicd`; do not assume a role for one repository is reusable by another repository.
 
@@ -40,7 +42,7 @@ Before trusting saved environment facts:
 3. Confirm the intended region/environment.
 4. Use GitHub to verify target repo visibility/state and read/write access.
 5. Read the target repo's `AGENTS.md`, `CONTEXT.md`, `SPEC.md`, `ENV.md`, and active Issue/PR.
-6. Read the relevant shared evidence docs, especially `docs/DRIFT_DEMO.md` and `docs/AUTOMATION_CICD_LAB.md`.
+6. Read the relevant shared evidence docs, especially `docs/DRIFT_DEMO.md`, `docs/AUTOMATION_CICD_LAB.md`, `docs/OIDC_MCP_CODEBUILD_LAB.md`, and `docs/HOSTING.md`.
 7. Discover the AWS Core tool/skill surface actually exposed in that session.
 
 If the account, principal, repository, or authority differs, reconcile before mutation.
@@ -70,7 +72,7 @@ When available:
 
 ## Proven direct AWS MCP capabilities
 
-Authenticated reads succeeded against STS, EC2, S3, IAM, Lambda, CloudFormation, ECS, ECR, SSM, CloudWatch, DynamoDB, and CloudWatch Logs.
+Authenticated reads succeeded against STS, EC2, S3, IAM, Lambda, CloudFormation, ECS, ECR, SSM, CloudWatch, DynamoDB, CloudWatch Logs, CodeBuild, and CloudFront.
 
 ### Temporary SSM mutation proof
 
@@ -142,7 +144,7 @@ The workflow:
 2. applied Terraform;
 3. built a tiny Docker image;
 4. pushed it to `chatgpt-aws-cicd-lab`;
-5. verified digest `sha256:97c45707dd8b16ce4f5d3bb4a9c31682755443e3bd2628e8176365e5a08ce5f3`;
+5. verified the image digest;
 6. deleted the test image;
 7. verified the retained ECR repository contained zero images.
 
@@ -156,7 +158,7 @@ Two independent triggers were proven end-to-end:
 
 `EventBridge PutEvents -> rule -> Lambda -> DynamoDB`
 
-The workflow polled deterministic DynamoDB keys. This is important: acceptance checked the **final effect**, not only that S3/EventBridge accepted an API call.
+The workflow polled deterministic DynamoDB keys. Acceptance checked the **final effect**, not only that S3/EventBridge accepted an API call.
 
 Smoke-test objects and DynamoDB rows were deleted afterward. Independent AWS Core readback confirmed the table was ACTIVE, PAY_PER_REQUEST, and empty.
 
@@ -168,7 +170,7 @@ The first main attempts exposed missing provider refresh permissions such as:
 - `s3:GetLifecycleConfiguration`;
 - `events:ListTagsForResource`.
 
-The reusable rule is:
+Reusable rule:
 
 > Terraform least privilege must include both mutation permissions and the provider read/refresh APIs used to inspect existing state.
 
@@ -176,28 +178,57 @@ Failed applies can leave partial/tainted resources. A later successful Terraform
 
 Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.
 
-## Proven MCP-specific IAM control
+## Proven MCP-specific IAM controls
 
 AWS-managed MCP calls carry context that can distinguish MCP-originated requests from normal console/CLI/API/CI-CD activity:
 
 - `aws:ViaAWSMCPService`
 - `aws:CalledViaAWSMCP`
 
-Official AWS documentation defines `aws:ViaAWSMCPService` as a Boolean indicating that the request is routed through an AWS managed MCP server; `aws:CalledViaAWSMCP` can identify the specific MCP service principal.
+### S3 destructive-action proof — Issue #9
 
-Issue #9 proved this live with a narrow explicit deny:
+A narrow explicit deny blocks only:
 
 - action: `s3:DeleteObject`;
-- resource: only `s3://chatgpt-aws-automation-063884340510/mcp-guard/protected.txt`;
+- resource: `s3://chatgpt-aws-automation-063884340510/mcp-guard/protected.txt`;
 - condition: `aws:ViaAWSMCPService = true`.
 
 Results:
 
-- GitHub Actions OIDC created/deleted an equivalent temporary object: **PASS**.
-- AWS Core MCP attempted to delete the protected fixture: **AccessDenied as designed**.
-- `HeadObject` succeeded before and after; the ETag was unchanged.
+- GitHub Actions OIDC cleanup: **PASS**.
+- AWS Core MCP delete: **AccessDenied as designed**.
+- `HeadObject` before/after proved the fixture remained unchanged.
 
-This proves the same AWS environment can permit normal approved CI/CD cleanup while imposing stricter controls specifically on MCP-originated destructive actions.
+### CI/CD execution proof — Issue #18
+
+A second narrow explicit deny blocks only:
+
+- action: `codebuild:StartBuild`;
+- resource: `arn:aws:codebuild:ap-southeast-1:063884340510:project/chatgpt-aws-oidc-mcp-smoke`;
+- condition: `aws:ViaAWSMCPService = true`.
+
+Dedicated GitHub OIDC role:
+
+`github-actions-chatgpt-aws-codebuild-lab`
+
+Dedicated CodeBuild project:
+
+`chatgpt-aws-oidc-mcp-smoke`
+
+Results:
+
+- PR workflow `34685896954`: **PASS**.
+- follow-up PR workflow `34685971536`: **PASS**.
+- main workflow `34686033076`: **PASS**.
+- latest build `chatgpt-aws-oidc-mcp-smoke:7a4529bf-0248-4157-a0d6-6adef2881b6f`: **SUCCEEDED**.
+- AWS Core MCP independently read the project/build/logs and found 52 events including `OIDC-CODEBUILD-PASS` and a successful BUILD phase.
+- a fresh MCP `StartBuild` call returned explicit `AccessDenied` as designed.
+
+This proves a stronger pattern than the S3 fixture alone:
+
+> **CI/CD can execute through a dedicated GitHub OIDC role while AWS Core MCP remains able to inspect and diagnose the same service but is blocked from initiating that execution.**
+
+Detailed evidence: `docs/OIDC_MCP_CODEBUILD_LAB.md`.
 
 ## Important GitHub OIDC trust learning
 
@@ -217,6 +248,8 @@ Reusable procedure:
 6. Adjust only to the observed legitimate identity.
 7. Re-run and verify the assumed-role ARN before provisioning.
 
+Issue #18 added another IAM lesson: immediately creating a CodeBuild project after creating its service role can temporarily fail with `CodeBuild is not authorized to perform: sts:AssumeRole` even when trust is correct. A short propagation delay and retry succeeded. Treat new IAM role propagation as an eventual-consistency concern in bootstrap automation.
+
 ## Decision rule: which execution path to use
 
 Use **direct AWS MCP** for:
@@ -229,18 +262,23 @@ Use **direct AWS MCP** for:
 - bounded, reversible, low-cost operations;
 - independent verification after another deployment system runs.
 
-Use **GitHub + IaC + OIDC** for durable infrastructure:
+Use **GitHub + IaC + OIDC** for durable infrastructure and explicit execution paths:
 
 - networking;
 - application infrastructure;
 - databases;
 - IAM architecture;
 - persistent buckets/queues/tables/parameters;
+- CI/CD jobs such as CodeBuild when execution should be attributable to the CI path;
 - anything expected to be reviewed, rebuilt, drift-checked, or destroyed reproducibly.
 
 Preferred durable loop:
 
 `ChatGPT -> GitHub/IaC -> GitHub Actions/OIDC -> AWS -> AWS MCP verification`
+
+For higher-risk execution actions, prefer:
+
+`GitHub OIDC executes -> AWS MCP observes/diagnoses -> MCP-specific IAM deny blocks selected direct MCP execution`
 
 Do not use direct API mutation as a silent replacement for Terraform/CloudFormation/CDK when durable desired state matters.
 
@@ -248,7 +286,8 @@ Do not use direct API mutation as a silent replacement for Terraform/CloudFormat
 
 - Normal IAM authorization remains the primary boundary.
 - MCP-specific condition keys can add an additional request-path boundary.
-- Use narrow explicit denies for high-risk MCP operations when appropriate.
+- Use narrow explicit denies for selected MCP operations when appropriate.
+- A deny can block an execution action such as `codebuild:StartBuild` while still allowing the MCP identity to read project/build/log state.
 - For IAM work, use the AWS IAM skill/guidance when available and verify trust + permission policies through live APIs.
 - CloudTrail is the primary audit/diagnostic source for downstream AWS API activity and federation failures.
 
@@ -258,48 +297,34 @@ Do not use direct API mutation as a silent replacement for Terraform/CloudFormat
 - Trust policy is as important as permissions policy.
 - Use repo-specific roles by default.
 - Restrict subjects rather than allowing broad organization wildcards.
-- Verify STS identity inside the workflow before provisioning.
-- Include Terraform provider refresh/read permissions, not only create/update/delete APIs.
-- After apply, perform provider readback and independent AWS MCP readback.
+- Verify STS identity inside the workflow before provisioning/execution.
+- Scope execution roles to the smallest service/resource set possible.
+- Include Terraform provider refresh/read permissions when Terraform is used.
+- After execution, perform independent AWS MCP readback.
 - After temporary tests, verify cleanup.
 
 ## Repository visibility model
 
-Both active lab repositories are private:
+- `mytestlab123/chatgpt-aws` — **private, active, primary lab**.
+- `mytestlab123/lab1_agent` — **public, active, independent**.
 
-- `mytestlab123/chatgpt-aws`
-- `mytestlab123/lab1_agent`
-
-Private visibility does **not** automatically authorize deployment. `lab1_agent` should still get its own scoped OIDC role/trust and project-specific Issue/SPEC authority.
+Do not treat `lab1_agent` as a consumer or dependency of this repository. Any work there must follow its own repository authority and its own trust/permissions design.
 
 ## Cross-session operating procedure
 
-For a new ChatGPT session working on an AWS repo:
+For a new ChatGPT session working on this AWS repo:
 
 1. **Load repo authority** — `AGENTS.md`, `CONTEXT.md`, `SPEC.md`, `ENV.md`, active Issue/PR.
-2. **Load shared AWS knowledge** — this file plus relevant evidence docs (`EXPERIMENTS`, `DRIFT_DEMO`, `AUTOMATION_CICD_LAB`).
+2. **Load shared AWS knowledge** — this file plus relevant evidence docs (`EXPERIMENTS`, `DRIFT_DEMO`, `AUTOMATION_CICD_LAB`, `OIDC_MCP_CODEBUILD_LAB`, `HOSTING`).
 3. **Verify connections** — GitHub read/write and AWS Core auth.
 4. **Verify AWS identity** — STS `GetCallerIdentity`.
-5. **Choose path** — direct MCP for live ops; GitHub + IaC + OIDC for durable state.
-6. **Use repo-specific OIDC trust** for durable deployment.
+5. **Choose path** — direct MCP for live ops; GitHub + IaC/OIDC for durable state or controlled execution.
+6. **Use repo-specific OIDC trust** for deployment/execution.
 7. **Execute the smallest useful milestone** instead of repeating proven connectivity tests.
 8. **Verify final effects** — not only API acceptance.
 9. **Provider/AWS MCP readback** — independently verify actual AWS state.
 10. **Clean up or explicitly retain** every test resource/data item.
 11. **Write learning back to Git** so the next session does not depend on chat memory.
-
-## `lab1_agent` reuse contract
-
-Another ChatGPT session working on `mytestlab123/lab1_agent` should:
-
-1. read `lab1_agent/docs/CHATGPT_AWS_BOOTSTRAP.md`;
-2. use GitHub to read this private source of truth;
-3. authenticate/verify AWS Core separately;
-4. read `lab1_agent` project contracts and active Issue/PR;
-5. reuse the hybrid execution model and the Issue #9 automation lessons;
-6. **not** reuse `github-actions-assignment-cicd-chatgpt-lab` or `github-actions-chatgpt-aws-lab` by assumption;
-7. create a scoped `lab1_agent` OIDC role when its own durable AWS deployment milestone is authorized;
-8. use CloudTrail first if federation fails.
 
 ## What is portable vs session-specific
 
@@ -312,7 +337,8 @@ Another ChatGPT session working on `mytestlab123/lab1_agent` should:
 - Terraform provider-permission lessons;
 - run IDs and PR evidence;
 - event-driven automation patterns;
-- MCP-specific IAM control pattern;
+- MCP-specific IAM control patterns;
+- CI/CD-only execution / MCP-observer pattern;
 - cleanup/verification discipline.
 
 ### Must be re-established in each session
@@ -332,4 +358,4 @@ Do a publication pass first:
 - review resource names and workflow history for environment details;
 - confirm no secrets/tokens/authentication state entered Git history;
 - review OIDC trust and workflow triggers independently of repo visibility;
-- keep the reusable architecture, OIDC troubleshooting, drift/reconciliation, automation, and MCP-governance lessons.
+- keep the reusable architecture, OIDC troubleshooting, drift/reconciliation, automation, CodeBuild execution split, and MCP-governance lessons.
