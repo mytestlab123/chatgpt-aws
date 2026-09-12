@@ -24,7 +24,7 @@ A verified hybrid operating model:
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Issue #24 is the active repository/workflow authority. It requires no new AWS resources and is limited to GitHub Actions trigger routing, documentation, validation, and proof.
+Issue #24 is complete. New AWS architecture/mutation beyond maintaining the retained labs should have a new owning Issue or current explicit user instruction.
 
 `mytestlab123/lab1_agent` is public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
@@ -114,11 +114,11 @@ Proven governance path after IAM propagation:
 
 Detailed evidence: `docs/SFN_SQS_OIDC_MCP_LAB.md`.
 
-## Active Milestone — Issue #24
+## Completed Milestone — Issue #24
 
 Goal: reduce unnecessary GitHub Actions/AWS work while preserving deterministic delivery.
 
-Required routing:
+Implemented routing:
 
 - `.github/workflows/automation-cicd-lab.yml` or `infra/automation-cicd/**` -> Automation CI/CD lab;
 - `.github/workflows/terraform-drift-demo.yml` or `infra/drift-demo/**` -> Terraform drift demo;
@@ -129,10 +129,12 @@ Required routing:
 
 Acceptance proof:
 
-1. routing implementation PR validates successfully;
-2. after merge, a docs-only proof PR automatically starts documentation workflows only;
-3. no Automation, CodeBuild, Step Functions/SQS, or drift-demo workflow run is created for that docs-only proof commit;
-4. evidence is written to `docs/WORKFLOW_ROUTING.md`.
+- PR #25 merged as `6d9be8e5735fa2e369939b5b51f64b9a9e853b53` after all expected implementation workflows passed.
+- PR #26 docs-only probe commit `d7bf72a0c19c474357458b45693c3532b0cb7004` created exactly two automatic runs: Docs build validation `34690145584` and Docs AWS site `34690145541`; both passed.
+- No Automation, CodeBuild, Step Functions/SQS, or drift-demo run was created for that probe commit.
+- PR #26 merged as `856cd25e3071483056513f3738d089f14bca4647`; the merge push also created exactly two workflows, both documentation workflows.
+
+Detailed evidence: `docs/WORKFLOW_ROUTING.md`.
 
 ## Verification Standard
 
@@ -170,4 +172,5 @@ Stop only if:
 - MCP-origin-specific IAM deny while non-MCP OIDC cleanup/execution remains functional.
 - Dedicated CI/CD-only execution path where GitHub OIDC can start CodeBuild while AWS MCP remains read/diagnose-only for that action.
 - Terraform-owned orchestration/messaging where GitHub OIDC can start Step Functions while AWS MCP independently verifies and is selectively blocked from direct execution.
+- Selective GitHub Actions routing that avoids unrelated AWS lab execution for docs-only changes while preserving manual regression.
 - Independent AWS MCP final verification and durable cross-session knowledge.
