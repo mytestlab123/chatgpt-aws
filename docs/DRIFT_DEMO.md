@@ -41,7 +41,7 @@ ChatGPT used direct AWS Core MCP to update the existing parameter outside Terraf
 - before: `desired-v1`, version `1`
 - after: `drifted-by-mcp`, version `2`
 
-This mutation is intentionally harmless and exists only to prove drift detection and repair.
+This mutation was intentionally harmless and existed only to prove drift detection and repair.
 
 ## Drift detection proof
 
@@ -56,6 +56,32 @@ PR #7 triggered a fresh Terraform plan against the remote S3 state.
 
 This proves Terraform detected the out-of-band AWS MCP mutation while retaining the configured desired value `desired-v1` as source of truth.
 
-## Reconciliation
+## Reconciliation proof
 
-Merging PR #7 to `main` will run the normal Terraform apply path and restore the parameter to `desired-v1`. AWS Core MCP must independently verify the final value/version after the apply succeeds.
+PR #7 was merged to `main`.
+
+- Main workflow run: `34675632976`
+- GitHub OIDC authentication: PASS
+- Terraform init/validate: PASS
+- Terraform apply: PASS
+- Workflow provider readback: PASS
+- Independent AWS Core MCP readback: PASS
+
+Final observed state through AWS Core MCP:
+
+- value: `desired-v1`
+- SSM version: `3`
+- final action: Terraform restored desired state after the direct MCP drift.
+
+## Result
+
+**PASS.** The complete hybrid loop is proven:
+
+1. Terraform created persistent desired state.
+2. AWS MCP independently verified it.
+3. AWS MCP introduced one bounded out-of-band change.
+4. Terraform detected the drift.
+5. GitHub Actions/OIDC/Terraform reconciled it.
+6. AWS MCP independently verified the repaired state.
+
+This is the default operating model for future durable AWS lab infrastructure.
