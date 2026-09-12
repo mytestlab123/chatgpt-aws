@@ -1,6 +1,6 @@
 # Step Functions + SQS OIDC/MCP Lab
 
-Status: **ACTIVE / Issue #21**  
+Status: **VERIFIED / PASS — Issue #21**  
 Environment: **PERSONAL / LAB**  
 Region: `ap-southeast-1`
 
@@ -15,7 +15,7 @@ AWS Core MCP                  = fast inspect / diagnose / verify
 
 This lab is independent of `lab1_agent`.
 
-## Architecture
+## Final architecture
 
 ```text
 GitHub PR
@@ -34,9 +34,9 @@ Terraform apply
    +--> SQS queue
    +--> Step Functions state machine
    +--> Step Functions service role
-   +--> dedicated GitHub execution OIDC role
+   +--> dedicated GitHub runtime OIDC role
 
-GitHub Actions -> dedicated execution OIDC role
+GitHub Actions -> dedicated runtime OIDC role
    |
    v
 Step Functions StartExecution
@@ -45,66 +45,138 @@ Step Functions StartExecution
 SQS SendMessage
    |
    v
-workflow receives marker + deletes message
+workflow verifies marker + deletes message
 
 AWS Core MCP
    |
    +--> inspect state machine / execution / IAM / queue
-   +--> StartExecution deliberately denied for this lab
+   +--> StartExecution deliberately DENIED for this lab
 ```
 
-## Durable Terraform resources
+## Terraform-owned durable resources
 
-Terraform directory:
+Terraform directory: `infra/sfn-sqs/`  
+Terraform state: `state/chatgpt-aws/sfn-sqs.tfstate`
 
-`infra/sfn-sqs/`
-
-Planned retained resources:
+Retained resources:
 
 - SQS queue `chatgpt-aws-sfn-sqs-smoke`;
 - Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
-- service role `chatgpt-aws-sfn-sqs-smoke`;
-- dedicated GitHub execution role `github-actions-chatgpt-aws-sfn-lab`.
+- Step Functions service role `chatgpt-aws-sfn-sqs-smoke`;
+- dedicated GitHub runtime OIDC role `github-actions-chatgpt-aws-sfn-lab`.
 
-Terraform state:
+The existing `github-actions-chatgpt-aws-lab` role remains the infrastructure deployment identity. Its permissions are scoped to the named Issue #21 resources.
 
-`state/chatgpt-aws/sfn-sqs.tfstate`
+## PR proof
 
-The existing `github-actions-chatgpt-aws-lab` role is the infrastructure deployment identity. Its permissions were extended only for this named queue/state machine and the two named IAM roles required by Issue #21.
+PR #22:
 
-## Runtime execution role
+`https://github.com/mytestlab123/chatgpt-aws/pull/22`
 
-The dedicated GitHub role is intended only for this lab's runtime operations:
+Successful PR workflow:
 
-- start the named state machine;
-- describe its executions/history;
-- read and delete the marker message from the named SQS queue.
+`34687644771` — **PASS**
 
-It does not own general AWS deployment permissions.
-
-## State machine behavior
-
-The state machine uses the optimized Step Functions -> SQS integration:
+Terraform plan:
 
 ```text
-Start
-  |
-  v
-SendQueueMessage
-  marker = OIDC-SFN-SQS-PASS
-  |
-  v
-Complete
-  |
-  v
-SUCCEEDED
+Plan: 6 to add, 0 to change, 0 to destroy.
 ```
 
-The GitHub workflow waits for `SUCCEEDED`, receives the queue message, checks the marker, and deletes the message.
+All documentation and existing lab checks also passed before merge.
 
-## MCP governance test
+## Main deterministic deployment proof
 
-After Terraform creates the state machine, AWS Core will install a narrow guard on the PERSONAL/LAB MCP identity:
+PR #22 squash merge:
+
+`e7a4172d6a8148513f379d9780f8b2569d72e504`
+
+Main workflow:
+
+`34687707682`, attempt 3 — **PASS**
+
+The final successful attempt proved both jobs:
+
+```text
+terraform = SUCCESS
+smoke     = SUCCESS
+```
+
+### Why three attempts?
+
+This produced useful least-privilege evidence.
+
+The first main apply exposed a missing Terraform provider/API permission:
+
+`states:ValidateStateMachineDefinition`
+
+After adding it, the next apply created the state machine but exposed another provider read permission:
+
+`states:ListStateMachineVersions`
+
+After adding that narrowly, the third attempt reconciled the partial Terraform state and passed end-to-end.
+
+Reusable lesson:
+
+> Terraform least privilege includes the provider's validation and refresh/read APIs, not only obvious create/update/delete operations.
+
+## GitHub OIDC runtime proof
+
+The dedicated runtime role:
+
+`github-actions-chatgpt-aws-sfn-lab`
+
+successfully started the state machine from GitHub Actions.
+
+Verified GitHub execution:
+
+`arn:aws:states:ap-southeast-1:063884340510:execution:chatgpt-aws-sfn-sqs-smoke:gh-34687707682-3`
+
+Final status:
+
+`SUCCEEDED`
+
+Independent AWS Core MCP history contained:
+
+```text
+ExecutionStarted
+TaskStateEntered
+TaskScheduled
+TaskStarted
+TaskSucceeded
+TaskStateExited
+PassStateEntered
+PassStateExited
+ExecutionSucceeded
+```
+
+This independently proves that Step Functions executed the SQS task and completed successfully.
+
+## SQS final-effect proof
+
+The state machine sent:
+
+```text
+marker = OIDC-SFN-SQS-PASS
+source = step-functions
+```
+
+The GitHub workflow received the marker and deleted the test message.
+
+AWS Core MCP independently verified the queue returned to:
+
+```text
+ApproximateNumberOfMessages           = 0
+ApproximateNumberOfMessagesNotVisible = 0
+```
+
+## MCP-specific governance proof
+
+The PERSONAL/LAB AWS Core identity has the narrow inline policy:
+
+`ChatGPTAwsMCPSfnGuard`
+
+which denies only:
 
 ```json
 {
@@ -119,22 +191,61 @@ After Terraform creates the state machine, AWS Core will install a narrow guard 
 }
 ```
 
-Expected control split:
+Final control split:
 
 ```text
-GitHub OIDC -> StartExecution = ALLOW
-AWS Core MCP -> StartExecution = DENY
-AWS Core MCP -> Describe/GetHistory/queue readback = ALLOW
+GitHub OIDC -> StartExecution                 = ALLOW / PASS
+AWS Core MCP -> Describe/GetHistory/IAM/SQS  = ALLOW / PASS
+AWS Core MCP -> StartExecution                = DENY / PASS
 ```
 
-The deny is a deliberate governance experiment, not an AWS MCP limitation.
+The direct MCP `StartExecution` call returned explicit `AccessDenied` after IAM policy propagation.
 
-## Why this lab matters
+### IAM propagation lesson
 
-Issue #18 proved the split with CodeBuild. Issue #21 extends it to orchestration and messaging while putting the durable resources under Terraform.
+The first negative test was made immediately after `PutUserPolicy`. It was still allowed and produced one test execution/message because the new IAM deny had not propagated yet.
 
-That makes the model closer to long-term engineering practice:
+The test message was deleted. After a short propagation wait, the same MCP `StartExecution` operation returned the expected explicit deny and the queue remained empty.
 
-> **Use MCP for speed of understanding. Use Git/IaC/OIDC for deterministic state. Use MCP again to verify reality.**
+Reusable rule:
 
-Detailed decision guidance: `docs/CONTROL_PATHS.md`.
+> After changing IAM, do not use the first immediate authorization result as final evidence. Re-read the policy, allow for IAM propagation, retry, and verify the downstream state.
+
+This is also direct evidence that **MCP mutation is technically possible when IAM permits it**. The deny is our governance choice, not an AWS Core limitation.
+
+## What Issue #21 proves
+
+For fast work:
+
+```text
+AWS MCP -> inspect / diagnose / test / verify
+```
+
+For durable deterministic work:
+
+```text
+Git -> Terraform/IaC -> PR -> GitHub Actions -> OIDC -> AWS
+```
+
+Then independently:
+
+```text
+AWS MCP -> verify actual AWS state and final effect
+```
+
+Preferred rule:
+
+> **MCP discovers and verifies; Git/IaC declares; OIDC CI/CD applies.**
+
+Detailed education: `docs/CONTROL_PATHS.md`.
+
+## Retained resources
+
+Retained intentionally for later PERSONAL/LAB testing:
+
+- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`;
+- SQS queue `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions service role `chatgpt-aws-sfn-sqs-smoke`;
+- GitHub runtime OIDC role `github-actions-chatgpt-aws-sfn-lab`;
+- narrow MCP guard `ChatGPTAwsMCPSfnGuard`.
