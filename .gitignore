@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 *.log
+*.zip
 node_modules/
 __pycache__/
 .pytest_cache/
