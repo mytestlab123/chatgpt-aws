@@ -6,7 +6,7 @@ Use this when starting another ChatGPT session that should reuse the proven AWS/
 
 > Use the connected **GitHub** and **AWS Core** apps. Do not rely on memory from another chat.
 >
-> 1. Read `docs/CONTROL_PATHS.md`, `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`, `docs/EXPERIMENTS.md`, `docs/DRIFT_DEMO.md`, `docs/AUTOMATION_CICD_LAB.md`, `docs/OIDC_MCP_CODEBUILD_LAB.md`, `docs/SFN_SQS_OIDC_MCP_LAB.md`, and `docs/HOSTING.md` first.
+> 1. Read `docs/CONTROL_PATHS.md`, `docs/WORKFLOW_ROUTING.md`, `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`, `docs/EXPERIMENTS.md`, `docs/DRIFT_DEMO.md`, `docs/AUTOMATION_CICD_LAB.md`, `docs/OIDC_MCP_CODEBUILD_LAB.md`, `docs/SFN_SQS_OIDC_MCP_LAB.md`, and `docs/HOSTING.md` first.
 > 2. Read this repo's `AGENTS.md`, `CONTEXT.md`, `SPEC.md`, `ENV.md`, and active Issue/PR.
 > 3. Verify AWS Core with STS `GetCallerIdentity` before any AWS mutation. Confirm account, principal, region, and environment match this PERSONAL/LAB repository.
 > 4. Verify GitHub read/write access and current repository state.
@@ -17,9 +17,10 @@ Use this when starting another ChatGPT session that should reuse the proven AWS/
 > 9. After changing IAM, allow for propagation before treating an immediate authorization test as final evidence. Issue #21 showed an immediate MCP call could still succeed before a new explicit deny propagated; a later retry returned the expected `AccessDenied`.
 > 10. If `AssumeRoleWithWebIdentity` fails, inspect CloudTrail for the actual GitHub WebIdentity principal/subject before widening the trust policy.
 > 11. For Terraform least privilege, include provider **validation/read/refresh APIs** as well as create/update/delete APIs. Issue #21 required `states:ValidateStateMachineDefinition` and `states:ListStateMachineVersions` in addition to obvious Step Functions mutation permissions.
-> 12. Verify the **final effect**, not only API acceptance. Poll/read downstream evidence such as build status, execution history, queue state, DynamoDB rows, logs, or service state.
-> 13. After deployment, independently verify real AWS state through AWS MCP.
-> 14. Write durable evidence/learning back to GitHub so the next session does not depend on chat history.
+> 12. Scope automatic GitHub Actions to executable inputs. Issue #24 proved that docs-only changes can create only the two documentation workflows while unrelated AWS lab workflows remain idle. Use `workflow_dispatch` when a deliberate full regression is wanted.
+> 13. Verify the **final effect**, not only API acceptance. Poll/read downstream evidence such as build status, execution history, queue state, DynamoDB rows, logs, or service state.
+> 14. After deployment, independently verify real AWS state through AWS MCP.
+> 15. Write durable evidence/learning back to GitHub so the next session does not depend on chat history.
 >
 > `mytestlab123/lab1_agent` is **public and independent**. Do not use it as an execution dependency or assume any of this repo's OIDC roles apply to it.
 
@@ -31,6 +32,10 @@ ChatGPT -> AWS Core MCP -> inspect / diagnose / test / verify
 
 DURABLE DETERMINISTIC WORK
 ChatGPT -> Git/IaC -> PR -> GitHub Actions -> OIDC -> AWS
+
+SELECTIVE CI ROUTING
+only changed executable inputs -> relevant workflow
+manual full regression          -> workflow_dispatch
 
 FINAL PROOF
 AWS Core MCP -> independent readback of actual AWS state
