@@ -3,8 +3,14 @@ name: Terraform drift demo
 on:
   pull_request:
     branches: [main]
+    paths:
+      - ".github/workflows/terraform-drift-demo.yml"
+      - "infra/drift-demo/**"
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/terraform-drift-demo.yml"
+      - "infra/drift-demo/**"
   workflow_dispatch:
 
 permissions:
