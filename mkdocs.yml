@@ -57,6 +57,7 @@ nav:
   - Start Here:
       - Session Bootstrap: SESSION_BOOTSTRAP.md
       - Fast vs Deterministic Control Paths: CONTROL_PATHS.md
+      - Selective Workflow Routing: WORKFLOW_ROUTING.md
       - Portable AWS + MCP Knowledge: PORTABLE_AWS_MCP_KNOWLEDGE.md
       - Documentation Hosting: HOSTING.md
   - Labs:
