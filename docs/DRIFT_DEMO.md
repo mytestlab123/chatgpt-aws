@@ -15,7 +15,7 @@ Prove the durable loop:
 - Managed SSM parameter: `/chatgpt-aws/drift-demo`
 - Region: `ap-southeast-1`
 
-The state bucket is private, versioned, encrypted, and tagged for this LAB.
+The state bucket is private, versioned, AES256 encrypted, public access blocked, and tagged for this LAB.
 
 ## Initial deployment proof
 
@@ -43,8 +43,19 @@ ChatGPT used direct AWS Core MCP to update the existing parameter outside Terraf
 
 This mutation is intentionally harmless and exists only to prove drift detection and repair.
 
-## Next verification
+## Drift detection proof
 
-This PR exists to trigger a fresh Terraform plan against the remote S3 state. Expected plan: restore the SSM parameter to Terraform's desired value `desired-v1`.
+PR #7 triggered a fresh Terraform plan against the remote S3 state.
 
-After the drift plan is captured, merging this PR to `main` will run Terraform apply and reconcile the parameter. AWS Core MCP will then verify the final state.
+- Workflow run: `34675498728`
+- OIDC authentication: PASS
+- Terraform init/validate: PASS
+- Terraform state refresh found the live SSM parameter at version `2`.
+- Terraform classified the resource as `~ update in-place`.
+- Exact plan result: `Plan: 0 to add, 1 to change, 0 to destroy.`
+
+This proves Terraform detected the out-of-band AWS MCP mutation while retaining the configured desired value `desired-v1` as source of truth.
+
+## Reconciliation
+
+Merging PR #7 to `main` will run the normal Terraform apply path and restore the parameter to `desired-v1`. AWS Core MCP must independently verify the final value/version after the apply succeeds.
