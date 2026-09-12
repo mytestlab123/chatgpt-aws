@@ -23,9 +23,7 @@ A verified hybrid operating model:
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Issue #18 is the active mutation authority for the dedicated OIDC + MCP CodeBuild control-plane lab.
-
-`mytestlab123/lab1_agent` is now public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
+`mytestlab123/lab1_agent` is public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
 ## MUST
 
@@ -53,12 +51,6 @@ Proven end-to-end:
 
 `ChatGPT -> GitHub/Terraform -> Actions/OIDC -> AWS -> AWS MCP verify -> harmless direct drift -> Terraform detects/repairs -> AWS MCP final verify`
 
-Retained LAB resources:
-
-- S3 Terraform state bucket `chatgpt-aws-tfstate-063884340510`;
-- IAM role `github-actions-chatgpt-aws-lab`;
-- Terraform-managed SSM parameter `/chatgpt-aws/drift-demo`.
-
 Detailed evidence: `docs/DRIFT_DEMO.md`.
 
 ## Completed Milestone — Issue #9
@@ -72,29 +64,33 @@ Four related outcomes are proven:
 
 Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.
 
-## Active Milestone — Issue #18
+## Completed Milestone — Issue #18
 
-Goal:
+Proven control split:
 
-`GitHub Actions -> dedicated OIDC role -> CodeBuild execution`
-
-while independently proving:
+`GitHub Actions -> dedicated repo OIDC role -> CodeBuild StartBuild = ALLOW`
 
 `AWS Core MCP -> CodeBuild read/diagnose = ALLOW`
 
-and:
-
 `AWS Core MCP -> CodeBuild StartBuild = DENY when aws:ViaAWSMCPService=true`
 
-Authorized retained resources for this milestone:
+Evidence:
+
+- PR #19 dedicated OIDC workflow `34685896954`: PASS.
+- Follow-up PR workflow `34685971536`: PASS.
+- PR #19 squash merge: `0849745c54404d65cb98906282e8d5a111380621`.
+- Main workflow `34686033076`: PASS.
+- Latest build `chatgpt-aws-oidc-mcp-smoke:7a4529bf-0248-4157-a0d6-6adef2881b6f`: `SUCCEEDED`.
+- AWS Core MCP independently verified project, OIDC role trust/policy, CodeBuild service role trust, latest build status, and 52 CloudWatch log events containing `OIDC-CODEBUILD-PASS` and a successful BUILD phase.
+- A fresh MCP `StartBuild` call returned explicit `AccessDenied` while the GitHub OIDC path remained allowed.
+
+Retained resources:
 
 - `github-actions-chatgpt-aws-codebuild-lab`;
 - `chatgpt-aws-oidc-mcp-smoke` CodeBuild project;
 - `chatgpt-aws-codebuild-smoke` service role;
 - `/aws/codebuild/chatgpt-aws-oidc-mcp-smoke` one-day log group;
 - `ChatGPTAwsMCPCodeBuildGuard` on the PERSONAL/LAB AWS Core identity.
-
-The dedicated OIDC role may only start/read the dedicated CodeBuild project. The CodeBuild service role may only write the dedicated log group. No static AWS access keys are allowed.
 
 Detailed evidence: `docs/OIDC_MCP_CODEBUILD_LAB.md`.
 
@@ -130,4 +126,5 @@ Stop only if:
 - S3 and EventBridge event-driven automation through Lambda/DynamoDB.
 - Terraform provider refresh-permission lesson under least privilege.
 - MCP-origin-specific IAM deny while non-MCP OIDC cleanup remains functional.
+- Dedicated CI/CD-only execution path where GitHub OIDC can start CodeBuild while AWS MCP remains read/diagnose-only for that action.
 - Independent AWS MCP final verification and durable cross-session knowledge.
