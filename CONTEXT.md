@@ -8,7 +8,7 @@ Status: ACTIVE
 - Primary Repository: `mytestlab123/chatgpt-aws`
 - Authorized Related Repositories:
   - `amitkarpe/assignment-cicd` for historical GitHub Actions/OIDC proofs
-  - `mytestlab123/lab1_agent` is now **public and independent**; do not use it as an execution dependency for this repository
+  - `mytestlab123/lab1_agent` is **public and independent**; do not use it as an execution dependency for this repository
 - Context: PERSONAL
 - Environment: LAB
 
@@ -18,50 +18,49 @@ Status: ACTIVE
 - `mytestlab123/lab1_agent` is public, unarchived, and independent.
 - AWS identity verified on 2026-09-12 as `arn:aws:iam::063884340510:user/devsecops` in account `063884340510`.
 - Main lab region is `ap-southeast-1`.
-- Existing repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` remains available for the earlier Terraform/automation/docs labs.
+- Existing repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` remains the Terraform/infrastructure deployment identity.
 - Persistent Terraform state bucket `chatgpt-aws-tfstate-063884340510` is retained.
-- Issue #5 drift/reconciliation milestone is complete; `/chatgpt-aws/drift-demo` remains Terraform-owned.
-- Issue #9 multi-service automation + CI/CD milestone is VERIFIED / PASS; detailed evidence is in `docs/AUTOMATION_CICD_LAB.md`.
-- Issue #18 dedicated OIDC + MCP CodeBuild control-plane milestone is VERIFIED / PASS; detailed evidence is in `docs/OIDC_MCP_CODEBUILD_LAB.md`.
+- Issue #5 drift/reconciliation milestone is VERIFIED / PASS.
+- Issue #9 multi-service automation + CI/CD milestone is VERIFIED / PASS.
+- Issue #18 dedicated OIDC + MCP CodeBuild control-plane milestone is VERIFIED / PASS.
+- Documentation site is live at `https://d36j5fck6lkl41.cloudfront.net/` and Terraform-owned in `infra/docs-site/`.
 
-### Issue #18 verified control split
+## Control-path decision
 
-Retained resources:
+The preferred long-term model is now explicit:
 
-- GitHub OIDC role: `github-actions-chatgpt-aws-codebuild-lab`.
-- CodeBuild project: `chatgpt-aws-oidc-mcp-smoke`.
-- CodeBuild service role: `chatgpt-aws-codebuild-smoke`.
-- CloudWatch log group: `/aws/codebuild/chatgpt-aws-oidc-mcp-smoke`, one-day retention.
-- MCP-specific guard: `ChatGPTAwsMCPCodeBuildGuard` on `devsecops`.
+- **AWS Core MCP** for fastest discovery, troubleshooting, live readback, independent verification, and bounded reversible experiments.
+- **Git + Terraform/IaC + GitHub Actions + OIDC** for durable deterministic infrastructure and deployment.
+- Use the hybrid loop: MCP discovers/verifies; Git/IaC declares; OIDC CI/CD applies; MCP verifies reality again.
+- MCP-specific IAM denies are deliberate governance tests, not a limitation of AWS Core MCP. When IAM permits it, MCP mutations are technically possible.
 
-Verified behavior:
+Detailed guidance: `docs/CONTROL_PATHS.md`.
 
-- GitHub OIDC PR workflow `34685896954`: PASS.
-- Follow-up PR workflow `34685971536`: PASS.
-- PR #19 merged at `0849745c54404d65cb98906282e8d5a111380621`.
-- Main workflow `34686033076`: PASS.
-- Latest CodeBuild build `chatgpt-aws-oidc-mcp-smoke:7a4529bf-0248-4157-a0d6-6adef2881b6f`: `SUCCEEDED`.
-- AWS Core MCP independently read the project/build/logs and found 52 latest-build log events with `OIDC-CODEBUILD-PASS` and a successful BUILD phase.
-- A fresh AWS Core MCP `StartBuild` attempt remained explicitly denied by `aws:ViaAWSMCPService=true` while the GitHub OIDC path remained allowed.
-- The OIDC execution role is limited to start/read operations for the single dedicated CodeBuild project.
-- The CodeBuild service role trust includes `codebuild.amazonaws.com`, `aws:SourceAccount`, and the exact project ARN.
+## Active Work — Issue #21
 
-### Documentation site
+Goal: prove the hybrid recommendation with Terraform-owned Step Functions + SQS and a dedicated runtime OIDC role.
 
-- Material for MkDocs is the documentation generator.
-- Live documentation URL: `https://d36j5fck6lkl41.cloudfront.net/`.
-- Docs hosting is Terraform-owned in `infra/docs-site/` and deployed by `.github/workflows/docs-aws.yml`.
-- Private origin bucket: `chatgpt-aws-docs-063884340510`.
-- CloudFront distribution: `E2M7VGXRFDXI7H` / `d36j5fck6lkl41.cloudfront.net`.
-- Hosting details are documented in `docs/HOSTING.md`.
+Planned durable resources:
 
-## Active Work
+- SQS queue `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions service role `chatgpt-aws-sfn-sqs-smoke`;
+- dedicated GitHub runtime role `github-actions-chatgpt-aws-sfn-lab`.
 
-- Issue #18 final evidence/documentation PR only. The AWS and GitHub execution proof itself is complete.
+Execution model:
+
+- existing `github-actions-chatgpt-aws-lab` -> Terraform plan/apply;
+- dedicated `github-actions-chatgpt-aws-sfn-lab` -> StartExecution + execution readback + SQS verification/cleanup;
+- AWS Core MCP -> independent read/diagnose/verify;
+- AWS Core MCP `states:StartExecution` -> deliberately denied only for this lab through `aws:ViaAWSMCPService=true` after the state machine is deployed.
+
+The primary Terraform role was extended only for the named queue/state machine and the two named IAM roles needed by Issue #21.
 
 ## Next Action
 
-1. Merge the final Issue #18 evidence PR after docs/CI checks pass.
-2. Close Issue #18 as completed.
-3. Keep the dedicated OIDC/CodeBuild/MCP resources for the next governance/automation experiment.
-4. Next useful direction: add another execution target or approval boundary while keeping the same pattern — GitHub OIDC executes, MCP observes/diagnoses, selected MCP mutations are denied.
+1. Validate the Issue #21 Terraform plan in PR.
+2. Merge after plan/docs checks pass.
+3. Apply on `main` through the existing Terraform OIDC role.
+4. Run the dedicated Step Functions execution OIDC smoke test and verify the SQS marker/cleanup.
+5. Install the narrow MCP StartExecution guard, then prove MCP read/diagnose remains allowed while direct MCP StartExecution is denied.
+6. Write final execution IDs/evidence back to Git and close Issue #21.
