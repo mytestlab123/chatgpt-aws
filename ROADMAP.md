@@ -8,18 +8,22 @@
 - Cross-session portable AWS MCP/GitHub knowledge pack.
 - Persistent Terraform state + repo-specific OIDC in `mytestlab123/chatgpt-aws`.
 - Direct AWS MCP drift -> Terraform detection -> GitHub/OIDC/Terraform repair -> independent AWS MCP final verification.
+- Issue #9 multi-service automation + CI/CD lab:
+  - ECR build/push/verify/delete through GitHub OIDC;
+  - S3 -> Lambda -> DynamoDB automation;
+  - EventBridge -> Lambda -> DynamoDB automation;
+  - CloudWatch evidence and provider readback;
+  - live `aws:ViaAWSMCPService` destructive-action deny proof;
+  - self-contained Amit learning HTML.
 
-## Now — Issue #9
+## Now
 
-- Prove ECR as a real CI/CD artifact path from GitHub Actions OIDC.
-- Prove S3 and EventBridge as independent automation triggers into Lambda + DynamoDB + CloudWatch Logs.
-- Prove an MCP-origin-specific destructive-action deny with `aws:ViaAWSMCPService` while the non-MCP GitHub OIDC path still cleans up.
-- Publish the evidence as reusable Markdown plus a self-contained HTML learning page.
+- Finalize Issue #9 evidence/steady-state checks and close the Issue.
 
 ## Next
 
-- Consume this expanded knowledge from the separate `mytestlab123/lab1_agent` ChatGPT session.
-- Consider Step Functions / CodeBuild only if they add a new operational lesson beyond the Issue #9 patterns.
+- Consume this expanded knowledge from the separate `mytestlab123/lab1_agent` ChatGPT session instead of repeating connectivity experiments.
+- Consider Step Functions / CodeBuild only if they add a genuinely new automation or governance lesson beyond the proven Issue #9 patterns.
 
 ## Later
 
