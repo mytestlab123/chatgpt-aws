@@ -29,10 +29,13 @@ Repository: `amitkarpe/assignment-cicd`
 
 Repository: `amitkarpe/assignment-cicd`
 
-- Issue #2 / PR #3.
-- Terraform creates one temporary S3 bucket using the OIDC role, verifies it, then destroys it and verifies absence.
-- IAM permission is restricted to the proof bucket prefix.
-- Status: RUNNING/PENDING final CI result at the time this document was created.
+- Issue #2 / PR #3: merged.
+- GitHub Actions run: `34673717208`.
+- Result: PASS.
+- Terraform created one temporary S3 bucket using the OIDC role, verified it, then destroyed it.
+- The workflow's cleanup check passed.
+- Independent AWS MCP readback also confirmed `HeadBucket` returns 404 for the proof bucket after destroy.
+- IAM permission was restricted to the proof bucket prefix.
 
 ### Strengths
 
@@ -129,6 +132,6 @@ A future ChatGPT Site can sit above these paths as a UI, but should not replace 
 
 ## Next experiments
 
-1. Complete Terraform/OIDC proof and record the passing workflow run.
-2. Test a persistent low-cost IaC stack, then have AWS MCP independently verify its deployed state and detect deliberate drift.
-3. Test an IAM policy that treats MCP-originated calls differently from normal human/API calls.
+1. Test a persistent low-cost IaC stack, then have AWS MCP independently verify its deployed state and detect deliberate drift.
+2. Test an IAM policy that treats MCP-originated calls differently from normal human/API calls.
+3. Only after the backend paths are stable, prototype a ChatGPT Site as the UI/control surface.
