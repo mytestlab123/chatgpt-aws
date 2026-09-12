@@ -36,11 +36,11 @@ locals {
   event_rule    = "chatgpt-aws-automation-events"
 
   tags = {
-    project       = local.project
-    environment   = "lab"
-    purpose       = "automation-cicd"
+    project      = local.project
+    environment  = "lab"
+    purpose      = "automation-cicd"
     "managed-by" = "terraform"
-    issue         = "9"
+    issue        = "9"
   }
 }
 
