@@ -1,6 +1,6 @@
 # Selective GitHub Actions Routing
 
-Status: **ACTIVE / Issue #24**  
+Status: **VERIFIED / PASS — Issue #24**  
 Environment: **PERSONAL / LAB**
 
 ## Goal
@@ -29,7 +29,7 @@ docs/control-file change
    +--> docs workflows
 ```
 
-The preferred routing is:
+The verified routing is now:
 
 ```text
 docs-only change
@@ -66,7 +66,7 @@ Files such as:
 
 may describe a lab, but they do not change the executable Terraform/runtime input for the Automation, Drift, Step Functions, or CodeBuild labs.
 
-Therefore they should not automatically invoke those AWS workflows.
+Therefore they do not automatically invoke those AWS workflows.
 
 If a deliberate full regression is wanted after a documentation/control-plane change, use `workflow_dispatch` on the relevant lab workflow.
 
@@ -134,13 +134,65 @@ OIDC CI/CD apply
 MCP independently verify
 ```
 
-They make the durable path faster by avoiding work that is unrelated to the changed source.
+They make the durable path faster by avoiding work unrelated to the changed source.
 
-## Verification plan
+## Verification evidence
 
-Issue #24 acceptance uses two stages:
+### Stage 1 — routing implementation
 
-1. **Routing implementation PR** — because it changes the lab workflow files themselves, the affected lab workflows are expected to run and validate the new YAML/routing definitions.
-2. **Docs-only proof PR** — after the routing change is merged, change only documentation and verify that only documentation workflows start automatically. No Automation, CodeBuild, Step Functions/SQS, or drift-demo run should be created for that commit.
+Issue #24 implementation PR: `#25`  
+Merge commit: `6d9be8e5735fa2e369939b5b51f64b9a9e853b53`
 
-Final run IDs and proof will be recorded here before Issue #24 is closed.
+Because PR #25 intentionally changed all four AWS lab workflow files plus documentation, the affected workflows were expected to run. PR validation passed:
+
+| Workflow | PR run | Result |
+|---|---:|---|
+| Automation CI/CD lab | `34690052332` | PASS |
+| Terraform drift demo | `34690052391` | PASS |
+| Step Functions + SQS lab | `34690052534` | PASS |
+| Dedicated OIDC CodeBuild lab | `34690052636` | PASS |
+| Docs build validation | `34690052366` | PASS |
+| Docs AWS site | `34690052412` | PASS |
+
+This proved the narrowed workflow definitions remained valid and each lab could still be explicitly exercised when its own workflow changed.
+
+### Stage 2 — docs-only isolation proof
+
+Proof PR: `#26`  
+Probe commit: `d7bf72a0c19c474357458b45693c3532b0cb7004`
+
+The probe changed only this documentation file **after** PR #25 was merged.
+
+GitHub created exactly two automatic workflow runs for that commit:
+
+| Workflow | Run | Result |
+|---|---:|---|
+| Docs build validation | `34690145584` | PASS |
+| Docs AWS site | `34690145541` | PASS |
+
+No automatic workflow run was created for:
+
+- Automation CI/CD lab;
+- Dedicated OIDC CodeBuild lab;
+- Deterministic Step Functions + SQS lab;
+- Terraform drift demo.
+
+That is the acceptance proof for Issue #24.
+
+## Result
+
+Before:
+
+```text
+docs change -> up to six workflows, including unrelated AWS labs
+```
+
+After:
+
+```text
+docs change -> two docs workflows only
+lab input change -> relevant lab workflow
+explicit full regression -> workflow_dispatch
+```
+
+This preserves deterministic Git/IaC/OIDC delivery while reducing unnecessary AWS executions and shortening the normal feedback loop.
