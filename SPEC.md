@@ -17,13 +17,14 @@ A verified hybrid operating model:
 3. AWS MCP independent verification and bounded live operations;
 4. Terraform detection/reconciliation when a managed resource drifts;
 5. reusable automation and CI/CD patterns across several AWS services;
-6. MCP-origin-specific IAM controls for selected destructive or execution actions.
+6. MCP-origin-specific IAM controls for selected destructive or execution actions;
+7. selective GitHub Actions routing so deterministic delivery does not execute unrelated AWS labs.
 
 ## Authorized
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Issue #21 implementation is complete. New AWS architecture/mutation beyond maintaining the retained Issue #21 lab should have a new owning Issue or current explicit user instruction.
+Issue #24 is the active repository/workflow authority. It requires no new AWS resources and is limited to GitHub Actions trigger routing, documentation, validation, and proof.
 
 `mytestlab123/lab1_agent` is public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
@@ -39,6 +40,7 @@ Issue #21 implementation is complete. New AWS architecture/mutation beyond maint
 - Clean up temporary proof resources unless explicitly retained.
 - Explicitly document retained persistent LAB resources.
 - Write reusable learning back to Git for other ChatGPT sessions.
+- Route automatic GitHub Actions by executable inputs when a narrower trigger is sufficient; retain `workflow_dispatch` for deliberate regression runs.
 
 ## MUST NOT
 
@@ -47,6 +49,7 @@ Issue #21 implementation is complete. New AWS architecture/mutation beyond maint
 - Create public application endpoints, databases with real data, or intentionally expensive resources without a new explicit milestone.
 - Leave temporary experiment resources running without documenting why.
 - Treat direct MCP mutation as a silent replacement for Terraform/CloudFormation/CDK when durable desired state matters.
+- Start unrelated AWS lab workflows automatically merely because a generic documentation/control file changed when that file is not an executable input to the lab.
 
 ## Control-Path Rule
 
@@ -109,30 +112,27 @@ Proven governance path after IAM propagation:
 
 `AWS Core MCP -> Step Functions StartExecution = DENY when aws:ViaAWSMCPService=true`
 
-Key evidence:
-
-- PR #22 plan run `34687644771`: `6 to add, 0 to change, 0 to destroy`.
-- PR #22 merge `e7a4172d6a8148513f379d9780f8b2569d72e504`.
-- main workflow `34687707682`, attempt 3: Terraform + runtime smoke **PASS**.
-- GitHub OIDC execution `gh-34687707682-3`: `SUCCEEDED`.
-- AWS MCP execution history independently contained `TaskSucceeded` and `ExecutionSucceeded`.
-- SQS final message counts returned to zero after deterministic cleanup.
-- first two main attempts exposed provider least-privilege requirements `states:ValidateStateMachineDefinition` and `states:ListStateMachineVersions`.
-- an immediate MCP negative test after `PutUserPolicy` was still allowed before IAM propagation; its message was cleaned up. After a short propagation wait, the same `StartExecution` call returned explicit `AccessDenied`.
-
-Retained Terraform-owned resources:
-
-- SQS queue `chatgpt-aws-sfn-sqs-smoke`;
-- Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
-- Step Functions execution role `chatgpt-aws-sfn-sqs-smoke`;
-- GitHub runtime OIDC role `github-actions-chatgpt-aws-sfn-lab`;
-- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`.
-
-Retained governance control:
-
-- `ChatGPTAwsMCPSfnGuard` on the PERSONAL/LAB AWS Core identity.
-
 Detailed evidence: `docs/SFN_SQS_OIDC_MCP_LAB.md`.
+
+## Active Milestone — Issue #24
+
+Goal: reduce unnecessary GitHub Actions/AWS work while preserving deterministic delivery.
+
+Required routing:
+
+- `.github/workflows/automation-cicd-lab.yml` or `infra/automation-cicd/**` -> Automation CI/CD lab;
+- `.github/workflows/terraform-drift-demo.yml` or `infra/drift-demo/**` -> Terraform drift demo;
+- `.github/workflows/sfn-sqs-oidc-mcp-lab.yml` or `infra/sfn-sqs/**` -> Step Functions + SQS lab;
+- `.github/workflows/codebuild-oidc-mcp-lab.yml` -> dedicated CodeBuild smoke;
+- documentation inputs -> documentation workflows;
+- every AWS lab workflow retains `workflow_dispatch` for explicit regression.
+
+Acceptance proof:
+
+1. routing implementation PR validates successfully;
+2. after merge, a docs-only proof PR automatically starts documentation workflows only;
+3. no Automation, CodeBuild, Step Functions/SQS, or drift-demo workflow run is created for that docs-only proof commit;
+4. evidence is written to `docs/WORKFLOW_ROUTING.md`.
 
 ## Verification Standard
 
@@ -145,6 +145,7 @@ For future milestones use the smallest meaningful combination of:
 - independent AWS MCP verification;
 - cleanup or explicitly retained-state verification;
 - IAM propagation-aware authorization verification;
+- workflow-trigger evidence when CI routing is part of the milestone;
 - cross-session documentation update.
 
 ## Stop Gates

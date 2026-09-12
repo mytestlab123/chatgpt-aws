@@ -3,8 +3,14 @@ name: Automation CI/CD lab
 on:
   pull_request:
     branches: [main]
+    paths:
+      - ".github/workflows/automation-cicd-lab.yml"
+      - "infra/automation-cicd/**"
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/automation-cicd-lab.yml"
+      - "infra/automation-cicd/**"
   workflow_dispatch:
 
 permissions:
