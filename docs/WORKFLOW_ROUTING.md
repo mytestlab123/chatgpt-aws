@@ -143,4 +143,8 @@ Issue #24 acceptance uses two stages:
 1. **Routing implementation PR** — because it changes the lab workflow files themselves, the affected lab workflows are expected to run and validate the new YAML/routing definitions.
 2. **Docs-only proof PR** — after the routing change is merged, change only documentation and verify that only documentation workflows start automatically. No Automation, CodeBuild, Step Functions/SQS, or drift-demo run should be created for that commit.
 
-Final run IDs and proof will be recorded here before Issue #24 is closed.
+## Docs-only proof marker
+
+This section is intentionally a documentation-only change created **after** the routing implementation merged. Its commit is the acceptance probe: only documentation workflows should be automatically created for it.
+
+Final run IDs and proof are recorded below after GitHub Actions evaluates this commit.
