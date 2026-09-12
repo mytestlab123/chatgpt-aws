@@ -23,15 +23,17 @@ A verified hybrid operating model:
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
+Issue #21 is the active mutation authority for the deterministic Step Functions + SQS lab.
+
 `mytestlab123/lab1_agent` is public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
 ## MUST
 
 - Record which execution path performed each experiment.
 - Verify every AWS mutation with provider/API readback.
-- Keep durable infrastructure under IaC when reproducibility matters; explicitly document any intentionally MCP-bootstrapped lab resources.
+- Keep durable infrastructure under IaC when reproducibility matters.
 - Prefer GitHub OIDC over static AWS access keys for CI/CD.
-- Use repo-specific OIDC trust/permissions unless reuse is explicitly reviewed.
+- Use repo-specific/purpose-specific OIDC trust and permissions unless reuse is explicitly reviewed.
 - Use CloudTrail/provider evidence to diagnose federation failures before widening trust.
 - Clean up temporary proof resources unless explicitly retained.
 - Explicitly document retained persistent LAB resources.
@@ -45,6 +47,23 @@ When an owning Issue/current user instruction is active, ChatGPT may perform bou
 - Leave temporary experiment resources running without documenting why.
 - Treat direct MCP mutation as a silent replacement for Terraform/CloudFormation/CDK when durable desired state matters.
 
+## Control-Path Rule
+
+Both execution methods are technically valid when IAM allows them.
+
+Preferred use:
+
+- **AWS Core MCP** = fastest inspect, troubleshoot, compare, verify, and bounded/reversible operations.
+- **Git + IaC + GitHub Actions + OIDC** = long-term deterministic infrastructure and deployment.
+
+Preferred durable loop:
+
+`MCP discover/diagnose -> Git/IaC declare -> OIDC CI/CD apply -> MCP independently verify`
+
+MCP-specific explicit denies used by these labs are deliberate governance experiments. They prove that an organization can allow an AI/MCP path to inspect/diagnose while reserving selected execution/deployment actions for a CI/CD identity. They do not mean AWS Core MCP is inherently unable to mutate those services.
+
+Detailed education: `docs/CONTROL_PATHS.md`.
+
 ## Completed Milestone — Issue #5
 
 Proven end-to-end:
@@ -55,12 +74,7 @@ Detailed evidence: `docs/DRIFT_DEMO.md`.
 
 ## Completed Milestone — Issue #9
 
-Four related outcomes are proven:
-
-1. **ECR CI/CD** — GitHub Actions builds, pushes, verifies, and deletes a test container image through OIDC-derived AWS credentials.
-2. **Event-driven automation** — S3 and EventBridge independently trigger Lambda, which writes deterministic evidence to DynamoDB and CloudWatch Logs.
-3. **MCP-aware governance** — `aws:ViaAWSMCPService` prevents AWS Core MCP from deleting one retained S3 governance fixture while the GitHub OIDC path can delete equivalent temporary objects.
-4. **Learning artifact** — durable Markdown evidence plus a self-contained HTML page for Amit.
+Proven ECR CI/CD, S3/EventBridge -> Lambda -> DynamoDB automation, MCP-specific S3 governance, and independent MCP readback.
 
 Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.
 
@@ -74,32 +88,45 @@ Proven control split:
 
 `AWS Core MCP -> CodeBuild StartBuild = DENY when aws:ViaAWSMCPService=true`
 
-Evidence:
-
-- PR #19 dedicated OIDC workflow `34685896954`: PASS.
-- Follow-up PR workflow `34685971536`: PASS.
-- PR #19 squash merge: `0849745c54404d65cb98906282e8d5a111380621`.
-- Main workflow `34686033076`: PASS.
-- Latest build `chatgpt-aws-oidc-mcp-smoke:7a4529bf-0248-4157-a0d6-6adef2881b6f`: `SUCCEEDED`.
-- AWS Core MCP independently verified project, OIDC role trust/policy, CodeBuild service role trust, latest build status, and 52 CloudWatch log events containing `OIDC-CODEBUILD-PASS` and a successful BUILD phase.
-- A fresh MCP `StartBuild` call returned explicit `AccessDenied` while the GitHub OIDC path remained allowed.
-
-Retained resources:
-
-- `github-actions-chatgpt-aws-codebuild-lab`;
-- `chatgpt-aws-oidc-mcp-smoke` CodeBuild project;
-- `chatgpt-aws-codebuild-smoke` service role;
-- `/aws/codebuild/chatgpt-aws-oidc-mcp-smoke` one-day log group;
-- `ChatGPTAwsMCPCodeBuildGuard` on the PERSONAL/LAB AWS Core identity.
-
 Detailed evidence: `docs/OIDC_MCP_CODEBUILD_LAB.md`.
+
+## Active Milestone — Issue #21
+
+Goal:
+
+`Git/Terraform -> infrastructure OIDC role -> Step Functions + SQS durable state`
+
+then:
+
+`GitHub Actions -> dedicated runtime OIDC role -> Step Functions StartExecution -> SQS marker = ALLOW`
+
+while independently proving:
+
+`AWS Core MCP -> state machine / execution / IAM / SQS readback = ALLOW`
+
+and:
+
+`AWS Core MCP -> Step Functions StartExecution = DENY when aws:ViaAWSMCPService=true`
+
+Authorized retained resources:
+
+- SQS queue `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions state machine `chatgpt-aws-sfn-sqs-smoke`;
+- Step Functions execution role `chatgpt-aws-sfn-sqs-smoke`;
+- GitHub runtime OIDC role `github-actions-chatgpt-aws-sfn-lab`;
+- Terraform state `state/chatgpt-aws/sfn-sqs.tfstate`;
+- narrow MCP StartExecution guard on the PERSONAL/LAB AWS Core identity after deployment.
+
+The durable resources above must be Terraform-owned. Direct MCP remains appropriate for the guard bootstrap, diagnosis, negative test, and independent readback evidence.
+
+Detailed evidence: `docs/SFN_SQS_OIDC_MCP_LAB.md`.
 
 ## Verification Standard
 
 For future milestones use the smallest meaningful combination of:
 
 - STS identity proof;
-- Terraform validation/plan/apply for durable infrastructure where used;
+- Terraform validation/plan/apply for durable infrastructure;
 - service-specific end-to-end smoke tests;
 - direct provider readback;
 - independent AWS MCP verification;
