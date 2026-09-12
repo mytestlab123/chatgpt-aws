@@ -13,25 +13,25 @@ Prove, compare, and document practical ways for ChatGPT to control a personal AW
 A verified hybrid operating model:
 
 1. direct ChatGPT -> AWS Core MCP -> AWS API operations;
-2. ChatGPT/GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS;
+2. ChatGPT/GitHub -> GitHub Actions -> OIDC -> Terraform/AWS services;
 3. AWS MCP independent verification and bounded live operations;
 4. Terraform detection/reconciliation when a managed resource drifts;
 5. reusable automation and CI/CD patterns across several AWS services;
-6. MCP-origin-specific IAM controls for selected destructive actions.
+6. MCP-origin-specific IAM controls for selected destructive or execution actions.
 
 ## Authorized
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Issue #9 implementation is complete. After its final evidence PR/steady-state validation is merged, a new AWS mutation milestone should have a new owning Issue or explicit user instruction.
+Issue #18 is the active mutation authority for the dedicated OIDC + MCP CodeBuild control-plane lab.
 
-`mytestlab123/lab1_agent` is an authorized related private repo for knowledge reuse, but its own AWS mutation/deployment must be owned by its project-specific Issue/SPEC and repo-specific OIDC trust.
+`mytestlab123/lab1_agent` is now public and independent. This repository must not depend on it for execution, OIDC trust, or AWS state.
 
 ## MUST
 
 - Record which execution path performed each experiment.
 - Verify every AWS mutation with provider/API readback.
-- Keep durable infrastructure under IaC when reproducibility matters.
+- Keep durable infrastructure under IaC when reproducibility matters; explicitly document any intentionally MCP-bootstrapped lab resources.
 - Prefer GitHub OIDC over static AWS access keys for CI/CD.
 - Use repo-specific OIDC trust/permissions unless reuse is explicitly reviewed.
 - Use CloudTrail/provider evidence to diagnose federation failures before widening trust.
@@ -59,7 +59,7 @@ Retained LAB resources:
 - IAM role `github-actions-chatgpt-aws-lab`;
 - Terraform-managed SSM parameter `/chatgpt-aws/drift-demo`.
 
-Final verified state: `/chatgpt-aws/drift-demo` = `desired-v1`, version `3`. Detailed evidence: `docs/DRIFT_DEMO.md`.
+Detailed evidence: `docs/DRIFT_DEMO.md`.
 
 ## Completed Milestone — Issue #9
 
@@ -70,38 +70,40 @@ Four related outcomes are proven:
 3. **MCP-aware governance** — `aws:ViaAWSMCPService` prevents AWS Core MCP from deleting one retained S3 governance fixture while the GitHub OIDC path can delete equivalent temporary objects.
 4. **Learning artifact** — durable Markdown evidence plus a self-contained HTML page for Amit.
 
-Key evidence:
+Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.
 
-- PR #10 merged.
-- PR workflow `34676895495`: Terraform plan `15 to add, 0 to change, 0 to destroy`.
-- Main workflow `34676955227`, attempt 3: Terraform apply + all CI/CD/automation smoke tests + provider readback PASS.
-- ECR pushed digest was verified, then the test image was deleted; final image count 0.
-- S3 and EventBridge triggers each produced verifiable DynamoDB evidence, then smoke-test data was removed.
-- GitHub OIDC S3 cleanup path: PASS.
-- AWS Core MCP delete of `mcp-guard/protected.txt`: explicit `AccessDenied` as designed.
-- AWS Core HeadObject before/after proved the protected fixture remained present and unchanged.
-- Independent final readback verified ECR, S3, DynamoDB, Lambda, EventBridge, CloudWatch Logs, Lambda IAM policy and MCP guard state.
+## Active Milestone — Issue #18
 
-Retained LAB resources:
+Goal:
 
-- private ECR repository `chatgpt-aws-cicd-lab` — currently empty;
-- private S3 bucket `chatgpt-aws-automation-063884340510` — only tiny governance fixture retained;
-- DynamoDB `chatgpt-aws-automation-events` — PAY_PER_REQUEST and empty after cleanup;
-- Lambda `chatgpt-aws-automation-recorder` — Python 3.12, 128 MB;
-- EventBridge rule `chatgpt-aws-automation-events`;
-- 1-day CloudWatch log group;
-- Lambda execution role `chatgpt-aws-automation-lambda`;
-- narrow `ChatGPTAwsMCPGuard` policy on the PERSONAL/LAB AWS Core identity.
+`GitHub Actions -> dedicated OIDC role -> CodeBuild execution`
 
-Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.  
-Educational view: `docs/AMIT_AUTOMATION_CICD_LAB.html`.
+while independently proving:
+
+`AWS Core MCP -> CodeBuild read/diagnose = ALLOW`
+
+and:
+
+`AWS Core MCP -> CodeBuild StartBuild = DENY when aws:ViaAWSMCPService=true`
+
+Authorized retained resources for this milestone:
+
+- `github-actions-chatgpt-aws-codebuild-lab`;
+- `chatgpt-aws-oidc-mcp-smoke` CodeBuild project;
+- `chatgpt-aws-codebuild-smoke` service role;
+- `/aws/codebuild/chatgpt-aws-oidc-mcp-smoke` one-day log group;
+- `ChatGPTAwsMCPCodeBuildGuard` on the PERSONAL/LAB AWS Core identity.
+
+The dedicated OIDC role may only start/read the dedicated CodeBuild project. The CodeBuild service role may only write the dedicated log group. No static AWS access keys are allowed.
+
+Detailed evidence: `docs/OIDC_MCP_CODEBUILD_LAB.md`.
 
 ## Verification Standard
 
 For future milestones use the smallest meaningful combination of:
 
 - STS identity proof;
-- Terraform validation/plan/apply for durable infrastructure;
+- Terraform validation/plan/apply for durable infrastructure where used;
 - service-specific end-to-end smoke tests;
 - direct provider readback;
 - independent AWS MCP verification;
