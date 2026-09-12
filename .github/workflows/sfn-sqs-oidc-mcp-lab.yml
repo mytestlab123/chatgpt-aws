@@ -3,8 +3,14 @@ name: Deterministic Step Functions + SQS lab
 on:
   pull_request:
     branches: [main]
+    paths:
+      - ".github/workflows/sfn-sqs-oidc-mcp-lab.yml"
+      - "infra/sfn-sqs/**"
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/sfn-sqs-oidc-mcp-lab.yml"
+      - "infra/sfn-sqs/**"
   workflow_dispatch:
 
 permissions:
