@@ -1,0 +1,186 @@
+name: Automation CI/CD lab
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: chatgpt-aws-automation-cicd
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  terraform-and-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/automation-cicd
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-lab
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify assumed identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform format and validate
+        run: |
+          terraform fmt -check -diff
+          terraform validate
+
+      - name: Terraform plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "Terraform plan failed"
+            exit 1
+          fi
+          terraform show -no-color tfplan > plan.txt
+          echo "plan_exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "### Automation CI/CD Terraform plan" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 0 ]; then
+            echo "No changes." >> "$GITHUB_STEP_SUMMARY"
+          else
+            grep -E '^Plan:|^No changes' plan.txt | tail -1 >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - name: Terraform apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -input=false -auto-approve
+
+      - name: Load Terraform outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "AUTOMATION_BUCKET=$(terraform output -raw automation_bucket)" >> "$GITHUB_ENV"
+          echo "ECR_REPOSITORY=$(terraform output -raw ecr_repository)" >> "$GITHUB_ENV"
+          echo "EVENT_TABLE=$(terraform output -raw event_table)" >> "$GITHUB_ENV"
+          echo "LAMBDA_FUNCTION=$(terraform output -raw lambda_function)" >> "$GITHUB_ENV"
+          echo "EVENT_RULE=$(terraform output -raw event_rule)" >> "$GITHUB_ENV"
+
+      - name: ECR build push verify delete
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          TAG="run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          IMAGE="${REGISTRY}/${ECR_REPOSITORY}:${TAG}"
+
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+          DIGEST=$(aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          test -n "$DIGEST"
+          test "$DIGEST" != "None"
+          echo "ECR pushed digest: $DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+          aws ecr batch-delete-image --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$TAG" >/dev/null
+          COUNT=$(aws ecr list-images --repository-name "$ECR_REPOSITORY" --query 'length(imageIds)' --output text)
+          test "$COUNT" = "0"
+
+      - name: S3 and EventBridge automation smoke tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          S3_KEY="events/${TEST_ID}.txt"
+          S3_ID="s3#${S3_KEY}"
+          EB_ID="eventbridge#${TEST_ID}"
+
+          poll_item() {
+            local item_id="$1"
+            for _ in $(seq 1 30); do
+              item=$(aws dynamodb get-item \
+                --table-name "$EVENT_TABLE" \
+                --key "{\"id\":{\"S\":\"${item_id}\"}}" \
+                --consistent-read \
+                --query 'Item.id.S' \
+                --output text)
+              if [ "$item" = "$item_id" ]; then
+                return 0
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for DynamoDB item: $item_id"
+            return 1
+          }
+
+          printf 's3 automation proof %s\n' "$TEST_ID" > /tmp/chatgpt-aws-s3-proof.txt
+          aws s3api put-object \
+            --bucket "$AUTOMATION_BUCKET" \
+            --key "$S3_KEY" \
+            --body /tmp/chatgpt-aws-s3-proof.txt >/dev/null
+          poll_item "$S3_ID"
+
+          aws events put-events --entries "[{\"Source\":\"chatgpt.aws.lab\",\"DetailType\":\"automation-test\",\"Detail\":\"{\\\"test_id\\\":\\\"${TEST_ID}\\\",\\\"path\\\":\\\"github-oidc\\\"}\"}]" >/tmp/put-events.json
+          test "$(jq -r '.FailedEntryCount' /tmp/put-events.json)" = "0"
+          poll_item "$EB_ID"
+
+          aws s3api delete-object --bucket "$AUTOMATION_BUCKET" --key "$S3_KEY" >/dev/null
+          aws dynamodb delete-item --table-name "$EVENT_TABLE" --key "{\"id\":{\"S\":\"${S3_ID}\"}}" >/dev/null
+          aws dynamodb delete-item --table-name "$EVENT_TABLE" --key "{\"id\":{\"S\":\"${EB_ID}\"}}" >/dev/null
+
+          echo "S3 -> Lambda -> DynamoDB: PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "EventBridge -> Lambda -> DynamoDB: PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prove non-MCP delete path
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY="mcp-guard/oidc-cleanup-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.txt"
+          printf 'OIDC delete proof\n' > /tmp/oidc-delete-proof.txt
+          aws s3api put-object --bucket "$AUTOMATION_BUCKET" --key "$KEY" --body /tmp/oidc-delete-proof.txt >/dev/null
+          aws s3api delete-object --bucket "$AUTOMATION_BUCKET" --key "$KEY" >/dev/null
+          if aws s3api head-object --bucket "$AUTOMATION_BUCKET" --key "$KEY" >/dev/null 2>&1; then
+            echo "OIDC cleanup object still exists"
+            exit 1
+          fi
+          echo "GitHub OIDC S3 delete path: PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Provider readback
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null
+          aws s3api get-public-access-block --bucket "$AUTOMATION_BUCKET" >/dev/null
+          aws s3api head-object --bucket "$AUTOMATION_BUCKET" --key mcp-guard/protected.txt >/dev/null
+          aws lambda get-function-configuration --function-name "$LAMBDA_FUNCTION" >/dev/null
+          aws dynamodb describe-table --table-name "$EVENT_TABLE" >/dev/null
+          aws events describe-rule --name "$EVENT_RULE" >/dev/null
+          aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/${LAMBDA_FUNCTION}" >/dev/null
+          echo "Provider readback: PASS" >> "$GITHUB_STEP_SUMMARY"

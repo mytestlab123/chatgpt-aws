@@ -9,14 +9,18 @@
 - Persistent Terraform state + repo-specific OIDC in `mytestlab123/chatgpt-aws`.
 - Direct AWS MCP drift -> Terraform detection -> GitHub/OIDC/Terraform repair -> independent AWS MCP final verification.
 
-## Now
+## Now — Issue #9
 
-- Test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP` so MCP-originated actions can have different permissions from normal human/API actions.
+- Prove ECR as a real CI/CD artifact path from GitHub Actions OIDC.
+- Prove S3 and EventBridge as independent automation triggers into Lambda + DynamoDB + CloudWatch Logs.
+- Prove an MCP-origin-specific destructive-action deny with `aws:ViaAWSMCPService` while the non-MCP GitHub OIDC path still cleans up.
+- Publish the evidence as reusable Markdown plus a self-contained HTML learning page.
 
 ## Next
 
-- Use `mytestlab123/lab1_agent` as the first independent ChatGPT-session consumer of the shared AWS knowledge and, when its own project scope is ready, create a repo-specific OIDC deployment role.
+- Consume this expanded knowledge from the separate `mytestlab123/lab1_agent` ChatGPT session.
+- Consider Step Functions / CodeBuild only if they add a new operational lesson beyond the Issue #9 patterns.
 
 ## Later
 
-- Add a ChatGPT Site or other UI/control surface after the backend AWS execution and governance paths are stable.
+- Add a UI/control surface after the backend AWS execution and governance paths are stable.
