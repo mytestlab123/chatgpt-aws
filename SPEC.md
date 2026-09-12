@@ -16,13 +16,14 @@ A verified hybrid operating model:
 2. ChatGPT/GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS;
 3. AWS MCP independent verification and bounded live operations;
 4. Terraform detection/reconciliation when a managed resource drifts;
-5. reusable automation and CI/CD patterns across several AWS services.
+5. reusable automation and CI/CD patterns across several AWS services;
+6. MCP-origin-specific IAM controls for selected destructive actions.
 
 ## Authorized
 
 When an owning Issue/current user instruction is active, ChatGPT may perform bounded PERSONAL/LAB work using low-cost AWS resources; create/update GitHub Issues, branches, PRs, workflows and documentation; create/update lab-only IAM roles/policies and Terraform state required by the approved experiment; validate results; and clean up temporary resources without repeated resource-by-resource approval.
 
-Current active milestone: **Issue #9 — Automation + CI/CD AWS service matrix lab**.
+Issue #9 implementation is complete. After its final evidence PR/steady-state validation is merged, a new AWS mutation milestone should have a new owning Issue or explicit user instruction.
 
 `mytestlab123/lab1_agent` is an authorized related private repo for knowledge reuse, but its own AWS mutation/deployment must be owned by its project-specific Issue/SPEC and repo-specific OIDC trust.
 
@@ -58,31 +59,53 @@ Retained LAB resources:
 - IAM role `github-actions-chatgpt-aws-lab`;
 - Terraform-managed SSM parameter `/chatgpt-aws/drift-demo`.
 
-Final verified state: `/chatgpt-aws/drift-demo` = `desired-v1`, version `3`. Detailed evidence lives in `docs/DRIFT_DEMO.md`.
+Final verified state: `/chatgpt-aws/drift-demo` = `desired-v1`, version `3`. Detailed evidence: `docs/DRIFT_DEMO.md`.
 
-## Active Milestone — Issue #9
+## Completed Milestone — Issue #9
 
-Prove four related outcomes in one cohesive package:
+Four related outcomes are proven:
 
 1. **ECR CI/CD** — GitHub Actions builds, pushes, verifies, and deletes a test container image through OIDC-derived AWS credentials.
 2. **Event-driven automation** — S3 and EventBridge independently trigger Lambda, which writes deterministic evidence to DynamoDB and CloudWatch Logs.
 3. **MCP-aware governance** — `aws:ViaAWSMCPService` prevents AWS Core MCP from deleting one retained S3 governance fixture while the GitHub OIDC path can delete equivalent temporary objects.
 4. **Learning artifact** — durable Markdown evidence plus a self-contained HTML page for Amit.
 
-Retained LAB resources may include one private ECR repository, one private S3 automation bucket with one tiny governance fixture, one DynamoDB on-demand table, one 128 MB Lambda function, one 1-day CloudWatch log group, one EventBridge rule, one Lambda execution role, and the narrowly scoped MCP guard policy.
+Key evidence:
 
-Temporary ECR images, smoke-test S3 objects, and smoke-test DynamoDB items must be deleted after successful validation.
+- PR #10 merged.
+- PR workflow `34676895495`: Terraform plan `15 to add, 0 to change, 0 to destroy`.
+- Main workflow `34676955227`, attempt 3: Terraform apply + all CI/CD/automation smoke tests + provider readback PASS.
+- ECR pushed digest was verified, then the test image was deleted; final image count 0.
+- S3 and EventBridge triggers each produced verifiable DynamoDB evidence, then smoke-test data was removed.
+- GitHub OIDC S3 cleanup path: PASS.
+- AWS Core MCP delete of `mcp-guard/protected.txt`: explicit `AccessDenied` as designed.
+- AWS Core HeadObject before/after proved the protected fixture remained present and unchanged.
+- Independent final readback verified ECR, S3, DynamoDB, Lambda, EventBridge, CloudWatch Logs, Lambda IAM policy and MCP guard state.
+
+Retained LAB resources:
+
+- private ECR repository `chatgpt-aws-cicd-lab` — currently empty;
+- private S3 bucket `chatgpt-aws-automation-063884340510` — only tiny governance fixture retained;
+- DynamoDB `chatgpt-aws-automation-events` — PAY_PER_REQUEST and empty after cleanup;
+- Lambda `chatgpt-aws-automation-recorder` — Python 3.12, 128 MB;
+- EventBridge rule `chatgpt-aws-automation-events`;
+- 1-day CloudWatch log group;
+- Lambda execution role `chatgpt-aws-automation-lambda`;
+- narrow `ChatGPTAwsMCPGuard` policy on the PERSONAL/LAB AWS Core identity.
+
+Detailed evidence: `docs/AUTOMATION_CICD_LAB.md`.  
+Educational view: `docs/AMIT_AUTOMATION_CICD_LAB.html`.
 
 ## Verification Standard
 
-Use the smallest meaningful combination of:
+For future milestones use the smallest meaningful combination of:
 
-- STS identity proof for the active execution identity;
-- Terraform validation/plan/apply for durable Issue #9 infrastructure;
-- GitHub Actions smoke tests for ECR, S3, EventBridge, Lambda and DynamoDB;
-- direct AWS provider readback after mutation;
-- explicit MCP-origin deny proof for the protected fixture;
-- cleanup or explicit retained-state verification;
+- STS identity proof;
+- Terraform validation/plan/apply for durable infrastructure;
+- service-specific end-to-end smoke tests;
+- direct provider readback;
+- independent AWS MCP verification;
+- cleanup or explicitly retained-state verification;
 - cross-session documentation update.
 
 ## Stop Gates
@@ -96,10 +119,13 @@ Stop only if:
 - cleanup/verification cannot be proven;
 - validation fails in a way that makes further mutation unsafe.
 
-## Acceptance Baseline Already Proven
+## Acceptance Baseline Now Proven
 
 - Direct AWS MCP read/write path.
 - GitHub OIDC + persistent Terraform path in the primary repo.
-- Deliberate out-of-band drift detected and reconciled through IaC.
-- Final AWS state independently verified through AWS MCP.
-- Portable cross-session knowledge updated with OIDC and drift lessons.
+- Out-of-band drift detection/reconciliation through IaC.
+- ECR CI/CD artifact flow without static AWS keys.
+- S3 and EventBridge event-driven automation through Lambda/DynamoDB.
+- Terraform provider refresh-permission lesson under least privilege.
+- MCP-origin-specific IAM deny while non-MCP OIDC cleanup remains functional.
+- Independent AWS MCP final verification and durable cross-session knowledge.
