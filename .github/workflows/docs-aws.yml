@@ -1,0 +1,139 @@
+name: Docs AWS site
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "infra/docs-site/**"
+      - ".github/workflows/docs-aws.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "infra/docs-site/**"
+      - ".github/workflows/docs-aws.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: chatgpt-aws-docs-site
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  build-plan-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Build Material site
+        run: mkdocs build --strict
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-lab
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify assumed identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init
+        run: terraform -chdir=infra/docs-site init -input=false
+
+      - name: Terraform format and validate
+        run: |
+          terraform -chdir=infra/docs-site fmt -check
+          terraform -chdir=infra/docs-site validate
+
+      - name: Terraform plan
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set +e
+          terraform -chdir=infra/docs-site plan -input=false -no-color -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "Terraform plan failed"
+            exit 1
+          fi
+          terraform -chdir=infra/docs-site show -no-color tfplan > infra/docs-site/plan.txt
+          echo "### Docs hosting Terraform plan" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 0 ]; then
+            echo "No changes." >> "$GITHUB_STEP_SUMMARY"
+          else
+            grep -E '^Plan:|^No changes' infra/docs-site/plan.txt | tail -1 >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - name: Terraform apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform -chdir=infra/docs-site apply -input=false -auto-approve
+
+      - name: Deploy generated site to S3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          BUCKET=$(terraform -chdir=infra/docs-site output -raw bucket_name)
+          aws s3 sync site/ "s3://${BUCKET}/" --delete
+
+      - name: Invalidate CloudFront and wait
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          DIST_ID=$(terraform -chdir=infra/docs-site output -raw distribution_id)
+          INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths '/*' --query 'Invalidation.Id' --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$DIST_ID" --id "$INVALIDATION_ID"
+
+      - name: Verify live documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          SITE_URL=$(terraform -chdir=infra/docs-site output -raw site_url)
+          test_url() {
+            local url="$1"
+            echo "Checking ${url}"
+            curl --fail --silent --show-error --retry 6 --retry-delay 5 --retry-all-errors "$url" >/dev/null
+          }
+
+          test_url "${SITE_URL}/"
+          test_url "${SITE_URL}/SESSION_BOOTSTRAP.html"
+          test_url "${SITE_URL}/PORTABLE_AWS_MCP_KNOWLEDGE.html"
+          test_url "${SITE_URL}/EXPERIMENTS.html"
+          test_url "${SITE_URL}/DRIFT_DEMO.html"
+          test_url "${SITE_URL}/AUTOMATION_CICD_LAB.html"
+          test_url "${SITE_URL}/AMIT_AUTOMATION_CICD_LAB.html"
+          test_url "${SITE_URL}/search/search_index.json"
+
+          curl --fail --silent "${SITE_URL}/" | grep -q "ChatGPT + AWS Lab"
+          curl --fail --silent "${SITE_URL}/AMIT_AUTOMATION_CICD_LAB.html" | grep -q "AWS Automation + CI/CD"
+          curl --fail --silent "${SITE_URL}/search/search_index.json" | grep -q "Portable AWS"
+
+          echo "### Material documentation live" >> "$GITHUB_STEP_SUMMARY"
+          echo "${SITE_URL}/" >> "$GITHUB_STEP_SUMMARY"
