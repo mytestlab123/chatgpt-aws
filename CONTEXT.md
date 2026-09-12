@@ -16,36 +16,38 @@ Status: ACTIVE
 
 - `mytestlab123/chatgpt-aws` is private and active.
 - `mytestlab123/lab1_agent` is private and unarchived.
-- ChatGPT has authenticated GitHub write access to both lab repositories.
-- AWS Core MCP is authenticated and can execute AWS API calls under the current IAM identity.
 - AWS identity verified on 2026-09-12 as `arn:aws:iam::063884340510:user/devsecops` in account `063884340510`.
 - Main lab region is `ap-southeast-1`.
-- Direct AWS MCP read/write proofs and the persistent Terraform drift/reconciliation milestone are complete.
-- GitHub OIDC provider `token.actions.githubusercontent.com` exists in the personal AWS account.
-- Repo-specific OIDC role `github-actions-chatgpt-aws-lab` is working for PR/main workflows.
+- Repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` is working for PR/main workflows without static AWS keys.
 - Persistent Terraform state bucket `chatgpt-aws-tfstate-063884340510` is retained.
-- Issue #5 is closed; final `/chatgpt-aws/drift-demo` state is `desired-v1`, version `3`.
-- Issue #9 is the active multi-service automation + CI/CD milestone.
-- The GitHub OIDC role policy was expanded only for Issue #9 lab resources/services.
-- The `devsecops` user has a narrow inline deny named `ChatGPTAwsMCPGuard` that denies `s3:DeleteObject` on the retained governance fixture only when `aws:ViaAWSMCPService=true`.
-- Official AWS documentation confirms `aws:ViaAWSMCPService` is Boolean and `aws:CalledViaAWSMCP` identifies the specific managed MCP service principal.
+- Issue #5 drift/reconciliation milestone is complete; `/chatgpt-aws/drift-demo` remains `desired-v1`, version `3` at last verification.
+- Issue #9 multi-service automation + CI/CD milestone is **VERIFIED / PASS**.
+- PR #10 merged at `0a5036045863cfc243718f512e8d3fc837affc6a`.
+- Successful PR validation run: `34676895495`, initial plan `15 to add, 0 to change, 0 to destroy`.
+- Successful main run: `34676955227`, attempt 3.
+- Main smoke tests passed for ECR, S3 -> Lambda -> DynamoDB, EventBridge -> Lambda -> DynamoDB, non-MCP OIDC S3 cleanup, and provider readback.
+- AWS Core independently verified the retained automation stack and cleanup state.
+- ECR repository `chatgpt-aws-cicd-lab` is retained and empty.
+- S3 bucket `chatgpt-aws-automation-063884340510` is private/AES256 and retains only `mcp-guard/protected.txt`.
+- DynamoDB `chatgpt-aws-automation-events` is ACTIVE/PAY_PER_REQUEST and empty after smoke-test cleanup.
+- Lambda `chatgpt-aws-automation-recorder` is Active, Python 3.12, 128 MB, 10-second timeout.
+- EventBridge rule `chatgpt-aws-automation-events` is ENABLED and targets the recorder Lambda.
+- CloudWatch log group has 1-day retention.
+- `devsecops` has narrow inline deny `ChatGPTAwsMCPGuard` for deleting only the retained protected fixture when `aws:ViaAWSMCPService=true`.
+- AWS Core MCP delete of the fixture returned explicit `AccessDenied`; HeadObject before/after proved the fixture remained unchanged.
+- Full technical evidence: `docs/AUTOMATION_CICD_LAB.md`.
+- Educational view for Amit: `docs/AMIT_AUTOMATION_CICD_LAB.html`.
 
 ## Active Work
 
-- Issue: #9 — Automation + CI/CD AWS service matrix lab
-- Branch: `issue-9-automation-cicd-lab`
-- PR: `<pending>`
-- Current package:
-  1. ECR container build/push/verify/delete through GitHub Actions OIDC.
-  2. S3 -> Lambda -> DynamoDB automation proof.
-  3. EventBridge -> Lambda -> DynamoDB automation proof.
-  4. MCP-specific S3 delete deny + non-MCP OIDC delete proof.
-  5. Durable evidence and a self-contained HTML learning page for Amit.
+- Final evidence PR for Issue #9: branch `issue-9-final-evidence`.
+- Goal: prove steady-state Terraform plan is clean, merge the evidence, run one final repeatable main smoke test, then close Issue #9.
 
 ## Next Action
 
-1. Open the Issue #9 PR and let the PR workflow validate Terraform formatting, validation, and plan.
-2. Fix only real validation/permission failures inside the same PR.
-3. Merge after a clean plan; main workflow then applies infrastructure and runs ECR + automation smoke tests.
-4. Use AWS Core MCP for independent readback and the protected-object delete-deny proof.
-5. Update Markdown/HTML with actual run IDs and results, then close Issue #9 when acceptance is fully proven.
+1. Open the final evidence PR and confirm the automation Terraform PR plan reports no changes.
+2. Merge the evidence PR after checks pass.
+3. Confirm the final main automation workflow passes again.
+4. Perform one final AWS Core readback of the retained governance fixture/empty ECR/DynamoDB cleanup state.
+5. Close Issue #9.
+6. Next useful consumer milestone: let the separate `lab1_agent` ChatGPT session reuse these patterns instead of repeating connectivity experiments.
