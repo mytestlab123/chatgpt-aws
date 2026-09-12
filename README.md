@@ -6,22 +6,24 @@ Personal LAB for proving how ChatGPT can inspect, mutate, and provision AWS thro
 
 The `docs/` knowledge base is published with **Material for MkDocs**.
 
-- Site: `https://mytestlab123.github.io/chatgpt-aws/`
+- **Live site:** `https://d36j5fck6lkl41.cloudfront.net/`
 - Source: `docs/`
 - Configuration: `mkdocs.yml`
-- Build/deploy workflow: `.github/workflows/docs-pages.yml`
+- AWS hosting IaC: `infra/docs-site/`
+- Build/deploy workflow: `.github/workflows/docs-aws.yml`
+- Hosting evidence/runbook: `docs/HOSTING.md`
+
+The source repository remains private. The generated documentation is served publicly through CloudFront from a private S3 bucket protected by Origin Access Control (OAC).
 
 The existing Markdown paths remain stable so other ChatGPT sessions can continue to reference files such as `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` and `docs/SESSION_BOOTSTRAP.md` directly.
 
-### One-time GitHub Pages setup
+### Why not GitHub Pages?
 
-For first publication, an administrator must enable Pages for this repository:
+Material for MkDocs builds correctly, but this private organization repository currently reports GitHub Pages as disabled (`has_pages=false`). The connected GitHub app cannot change that repository administration setting. Rather than leave the docs behind a 404, the verified publication path is now:
 
-`Settings -> Pages -> Build and deployment -> Source -> GitHub Actions`
+`GitHub main -> GitHub Actions -> OIDC -> Terraform -> private S3 -> CloudFront`
 
-The connected GitHub app can manage repository files and workflows but does not expose the Pages administration setting. After the one-time setting is enabled, pushes to `main` that change the docs/config automatically build and deploy the site.
-
-> GitHub Pages is publicly accessible even when the source repository is private. Review the documentation content before publishing exact environment/account details publicly.
+`.github/workflows/docs-pages.yml` remains only as a strict MkDocs build-validation workflow. GitHub Pages can be revisited later without changing the Markdown source.
 
 ## Directions
 
@@ -39,7 +41,8 @@ The direct MCP experiments live here. The minimal GitHub/OIDC proof lives in `am
 5. Read `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` for the reusable cross-session AWS/GitHub operating model and verified environment facts.
 6. Read `docs/SESSION_BOOTSTRAP.md` when starting another ChatGPT session.
 7. Read `docs/EXPERIMENTS.md` for verified results and comparison.
-8. Read `ENV.md` for the active tool/cloud surface.
+8. Read `docs/HOSTING.md` for the documentation publication path and 404 troubleshooting lesson.
+9. Read `ENV.md` for the active tool/cloud surface.
 
 For another ChatGPT session working on `mytestlab123/lab1_agent`, use this repository as the private AWS knowledge source and read `lab1_agent/docs/CHATGPT_AWS_BOOTSTRAP.md` in that target repository.
 

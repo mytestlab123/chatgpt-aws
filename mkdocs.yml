@@ -1,5 +1,6 @@
 site_name: ChatGPT AWS Lab
 site_description: Verified ChatGPT, AWS Core MCP, GitHub OIDC, Terraform, automation, and CI/CD lab knowledge.
+site_url: https://d36j5fck6lkl41.cloudfront.net/
 repo_url: https://github.com/mytestlab123/chatgpt-aws
 repo_name: mytestlab123/chatgpt-aws
 edit_uri: edit/main/docs/
@@ -56,6 +57,7 @@ nav:
   - Start Here:
       - Session Bootstrap: SESSION_BOOTSTRAP.md
       - Portable AWS + MCP Knowledge: PORTABLE_AWS_MCP_KNOWLEDGE.md
+      - Documentation Hosting: HOSTING.md
   - Labs:
       - Experiments: EXPERIMENTS.md
       - Terraform Drift Demo: DRIFT_DEMO.md

@@ -20,34 +20,34 @@ Status: ACTIVE
 - Main lab region is `ap-southeast-1`.
 - Repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` is working for PR/main workflows without static AWS keys.
 - Persistent Terraform state bucket `chatgpt-aws-tfstate-063884340510` is retained.
-- Issue #5 drift/reconciliation milestone is complete; `/chatgpt-aws/drift-demo` remains `desired-v1`, version `3` at last verification.
-- Issue #9 multi-service automation + CI/CD milestone is **VERIFIED / PASS**.
-- PR #10 merged at `0a5036045863cfc243718f512e8d3fc837affc6a`.
-- Successful PR validation run: `34676895495`, initial plan `15 to add, 0 to change, 0 to destroy`.
-- Successful main run: `34676955227`, attempt 3.
-- Main smoke tests passed for ECR, S3 -> Lambda -> DynamoDB, EventBridge -> Lambda -> DynamoDB, non-MCP OIDC S3 cleanup, and provider readback.
-- AWS Core independently verified the retained automation stack and cleanup state.
-- ECR repository `chatgpt-aws-cicd-lab` is retained and empty.
-- S3 bucket `chatgpt-aws-automation-063884340510` is private/AES256 and retains only `mcp-guard/protected.txt`.
-- DynamoDB `chatgpt-aws-automation-events` is ACTIVE/PAY_PER_REQUEST and empty after smoke-test cleanup.
-- Lambda `chatgpt-aws-automation-recorder` is Active, Python 3.12, 128 MB, 10-second timeout.
-- EventBridge rule `chatgpt-aws-automation-events` is ENABLED and targets the recorder Lambda.
-- CloudWatch log group has 1-day retention.
-- `devsecops` has narrow inline deny `ChatGPTAwsMCPGuard` for deleting only the retained protected fixture when `aws:ViaAWSMCPService=true`.
-- AWS Core MCP delete of the fixture returned explicit `AccessDenied`; HeadObject before/after proved the fixture remained unchanged.
-- Full technical evidence: `docs/AUTOMATION_CICD_LAB.md`.
-- Educational view for Amit: `docs/AMIT_AUTOMATION_CICD_LAB.html`.
+- Issue #5 drift/reconciliation milestone is complete; `/chatgpt-aws/drift-demo` remains Terraform-owned.
+- Issue #9 multi-service automation + CI/CD milestone is VERIFIED / PASS; detailed evidence is in `docs/AUTOMATION_CICD_LAB.md`.
+- ECR repository `chatgpt-aws-cicd-lab` is retained and normally empty after smoke tests.
+- S3 bucket `chatgpt-aws-automation-063884340510` is private and retains the MCP governance fixture.
+- DynamoDB `chatgpt-aws-automation-events`, Lambda `chatgpt-aws-automation-recorder`, EventBridge rule, and CloudWatch log group are retained as the automation lab.
+- `devsecops` has narrow MCP-specific protection for the retained S3 fixture using `aws:ViaAWSMCPService=true`.
+
+### Documentation site
+
+- Material for MkDocs is the documentation generator.
+- Live documentation URL: `https://d36j5fck6lkl41.cloudfront.net/`.
+- GitHub Pages is not currently enabled for this private organization repository (`has_pages=false`), so the old `mytestlab123.github.io/chatgpt-aws/` URL must not be treated as live.
+- Docs hosting is Terraform-owned in `infra/docs-site/` and deployed by `.github/workflows/docs-aws.yml`.
+- Private origin bucket: `chatgpt-aws-docs-063884340510`.
+- CloudFront distribution: `E2M7VGXRFDXI7H` / `d36j5fck6lkl41.cloudfront.net`.
+- CloudFront OAC: `E10YPJ26EF3Z3U` / `chatgpt-aws-docs-oac`.
+- S3 Block Public Access is enabled on all four controls; CloudFront uses OAC with SigV4.
+- Main docs workflow `34684093457`, attempt 2, passed build, Terraform reconcile, S3 sync, CloudFront invalidation, and live HTTP checks.
+- Independent AWS Core readback verified the deployed distribution, OAC, private S3 policy, and all required site/search/custom HTML objects.
+- Hosting details and the GitHub Pages 404 lesson are documented in `docs/HOSTING.md`.
 
 ## Active Work
 
-- Final evidence PR for Issue #9: branch `issue-9-final-evidence`.
-- Goal: prove steady-state Terraform plan is clean, merge the evidence, run one final repeatable main smoke test, then close Issue #9.
+- Issue #15: finalize and merge documentation-hosting evidence, then close the 404 incident as completed.
 
 ## Next Action
 
-1. Open the final evidence PR and confirm the automation Terraform PR plan reports no changes.
-2. Merge the evidence PR after checks pass.
-3. Confirm the final main automation workflow passes again.
-4. Perform one final AWS Core readback of the retained governance fixture/empty ECR/DynamoDB cleanup state.
-5. Close Issue #9.
-6. Next useful consumer milestone: let the separate `lab1_agent` ChatGPT session reuse these patterns instead of repeating connectivity experiments.
+1. Merge the Issue #15 evidence/documentation PR after its strict MkDocs + Terraform checks pass.
+2. Confirm the resulting main docs deployment passes again.
+3. Keep the CloudFront URL as the authoritative human-readable docs URL.
+4. Other ChatGPT sessions should consume `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`, `docs/SESSION_BOOTSTRAP.md`, and `docs/HOSTING.md` rather than relying on chat memory.
