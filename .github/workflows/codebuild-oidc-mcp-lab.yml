@@ -1,0 +1,87 @@
+name: Dedicated OIDC CodeBuild lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/codebuild-oidc-mcp-lab.yml"
+      - "docs/OIDC_MCP_CODEBUILD_LAB.md"
+      - "mkdocs.yml"
+      - "CONTEXT.md"
+      - "SPEC.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/codebuild-oidc-mcp-lab.yml"
+      - "docs/OIDC_MCP_CODEBUILD_LAB.md"
+      - "mkdocs.yml"
+      - "CONTEXT.md"
+      - "SPEC.md"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: codebuild-oidc-mcp-lab-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  ROLE_ARN: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-codebuild-lab
+  CODEBUILD_PROJECT: chatgpt-aws-oidc-mcp-smoke
+
+jobs:
+  oidc-codebuild-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure dedicated AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify dedicated assumed identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Start dedicated CodeBuild smoke build
+        id: start
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_ID=$(aws codebuild start-build \
+            --project-name "$CODEBUILD_PROJECT" \
+            --query 'build.id' \
+            --output text)
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+          echo "Started CodeBuild: $BUILD_ID"
+
+      - name: Wait for CodeBuild result
+        shell: bash
+        env:
+          BUILD_ID: ${{ steps.start.outputs.build_id }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            STATUS=$(aws codebuild batch-get-builds \
+              --ids "$BUILD_ID" \
+              --query 'builds[0].buildStatus' \
+              --output text)
+            echo "attempt=$attempt status=$STATUS"
+            case "$STATUS" in
+              SUCCEEDED)
+                echo "### Dedicated OIDC CodeBuild smoke" >> "$GITHUB_STEP_SUMMARY"
+                echo "- Build: \`$BUILD_ID\`" >> "$GITHUB_STEP_SUMMARY"
+                echo "- Status: **SUCCEEDED**" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              FAILED|FAULT|STOPPED|TIMED_OUT)
+                echo "CodeBuild ended with $STATUS"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          echo "Timed out waiting for CodeBuild"
+          exit 1

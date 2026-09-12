@@ -62,6 +62,7 @@ nav:
       - Experiments: EXPERIMENTS.md
       - Terraform Drift Demo: DRIFT_DEMO.md
       - Automation + CI/CD Lab: AUTOMATION_CICD_LAB.md
+      - Dedicated OIDC + MCP CodeBuild: OIDC_MCP_CODEBUILD_LAB.md
 
 extra:
   generator: false

@@ -8,17 +8,17 @@ Status: ACTIVE
 - Primary Repository: `mytestlab123/chatgpt-aws`
 - Authorized Related Repositories:
   - `amitkarpe/assignment-cicd` for historical GitHub Actions/OIDC proofs
-  - `mytestlab123/lab1_agent` for cross-session knowledge reuse and future project-specific AWS experiments
+  - `mytestlab123/lab1_agent` is now **public and independent**; do not use it as an execution dependency for this repository
 - Context: PERSONAL
 - Environment: LAB
 
 ## Current Truth
 
 - `mytestlab123/chatgpt-aws` is private and active.
-- `mytestlab123/lab1_agent` is private and unarchived.
+- `mytestlab123/lab1_agent` is public, unarchived, and independent.
 - AWS identity verified on 2026-09-12 as `arn:aws:iam::063884340510:user/devsecops` in account `063884340510`.
 - Main lab region is `ap-southeast-1`.
-- Repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` is working for PR/main workflows without static AWS keys.
+- Existing repo-specific GitHub OIDC role `github-actions-chatgpt-aws-lab` remains available for the earlier Terraform/automation/docs labs.
 - Persistent Terraform state bucket `chatgpt-aws-tfstate-063884340510` is retained.
 - Issue #5 drift/reconciliation milestone is complete; `/chatgpt-aws/drift-demo` remains Terraform-owned.
 - Issue #9 multi-service automation + CI/CD milestone is VERIFIED / PASS; detailed evidence is in `docs/AUTOMATION_CICD_LAB.md`.
@@ -31,23 +31,33 @@ Status: ACTIVE
 
 - Material for MkDocs is the documentation generator.
 - Live documentation URL: `https://d36j5fck6lkl41.cloudfront.net/`.
-- GitHub Pages is not currently enabled for this private organization repository (`has_pages=false`), so the old `mytestlab123.github.io/chatgpt-aws/` URL must not be treated as live.
 - Docs hosting is Terraform-owned in `infra/docs-site/` and deployed by `.github/workflows/docs-aws.yml`.
 - Private origin bucket: `chatgpt-aws-docs-063884340510`.
 - CloudFront distribution: `E2M7VGXRFDXI7H` / `d36j5fck6lkl41.cloudfront.net`.
 - CloudFront OAC: `E10YPJ26EF3Z3U` / `chatgpt-aws-docs-oac`.
-- S3 Block Public Access is enabled on all four controls; CloudFront uses OAC with SigV4.
-- Main docs workflow `34684093457`, attempt 2, passed build, Terraform reconcile, S3 sync, CloudFront invalidation, and live HTTP checks.
-- Independent AWS Core readback verified the deployed distribution, OAC, private S3 policy, and all required site/search/custom HTML objects.
 - Hosting details and the GitHub Pages 404 lesson are documented in `docs/HOSTING.md`.
+
+### Issue #18 dedicated OIDC + MCP CodeBuild lab
+
+AWS Core MCP has created and read back the dedicated lab control plane:
+
+- GitHub OIDC role: `github-actions-chatgpt-aws-codebuild-lab`.
+- Trust is limited to `mytestlab123/chatgpt-aws` PR/main subjects and the existing GitHub OIDC provider.
+- OIDC role permission is limited to starting/reading `chatgpt-aws-oidc-mcp-smoke`.
+- CodeBuild project: `chatgpt-aws-oidc-mcp-smoke` (`NO_SOURCE`, `NO_ARTIFACTS`, `BUILD_GENERAL1_SMALL`).
+- CodeBuild service role: `chatgpt-aws-codebuild-smoke`, restricted with `aws:SourceAccount` and the exact project ARN.
+- CloudWatch log group: `/aws/codebuild/chatgpt-aws-oidc-mcp-smoke`, one-day retention.
+- `devsecops` inline policy `ChatGPTAwsMCPCodeBuildGuard` explicitly denies only `codebuild:StartBuild` for this project when `aws:ViaAWSMCPService=true`.
+- AWS Core MCP can read the project but its direct `StartBuild` test returned `AccessDenied` as designed.
+- First project-creation attempt immediately after service-role creation hit `CodeBuild is not authorized to perform: sts:AssumeRole`; after IAM propagation/retry, project creation succeeded.
 
 ## Active Work
 
-- Issue #15: finalize and merge documentation-hosting evidence, then close the 404 incident as completed.
+- Issue #18: prove the dedicated GitHub OIDC role can start the CodeBuild smoke job, then use AWS Core MCP independently to verify the successful build/log evidence while keeping MCP `StartBuild` denied.
 
 ## Next Action
 
-1. Merge the Issue #15 evidence/documentation PR after its strict MkDocs + Terraform checks pass.
-2. Confirm the resulting main docs deployment passes again.
-3. Keep the CloudFront URL as the authoritative human-readable docs URL.
-4. Other ChatGPT sessions should consume `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`, `docs/SESSION_BOOTSTRAP.md`, and `docs/HOSTING.md` rather than relying on chat memory.
+1. Run PR validation for `.github/workflows/codebuild-oidc-mcp-lab.yml`.
+2. Confirm the workflow assumes `github-actions-chatgpt-aws-codebuild-lab` and CodeBuild reaches `SUCCEEDED`.
+3. Use AWS Core MCP to verify the latest build and CloudWatch log evidence.
+4. Merge the Issue #18 PR, run the main workflow once, update durable evidence, and close Issue #18 when acceptance passes.
