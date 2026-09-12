@@ -1,42 +1,34 @@
 # Environment
 
-Status: NOT_READY
-
-Record project-specific runtime and dependency truth here. Keep machine-specific facts in the active `~/.agent/HOST.md` profile when available instead of duplicating host configuration in every repository.
+Status: READY
 
 ## Runtime
 
-- Primary host/profile: `~/.agent/HOST.md` when available
-- Working directory: `<repo path>`
-- Runtime: `<local | container | AWS | mixed>`
+- Runtime: mixed ChatGPT tools + GitHub Actions + AWS
+- Primary interaction: ChatGPT web chat
 
 ## Development Tools
 
-List only tools this project actually depends on, for example:
-
-- Python: `<version / not required>`
-- Node.js / npm: `<version / not required>`
-- Docker/Podman: `<required / not required>`
-- Terraform/Terragrunt: `<required / not required>`
-- Nextflow: `<required / not required>`
+- GitHub connected app: required
+- AWS Core MCP: required for direct path
+- GitHub Actions: required for GitOps path
+- Terraform: required only for GitOps/IaC proof
+- Docker: not required for current milestone
 
 ## Cloud
 
-- Provider: `<AWS / none / other>`
-- AWS profile: `<profile or N/A>`
-- Region: `<region or N/A>`
-- Account/environment alias: `<personal lab / dev / nonprod / prod / N/A>`
-
-Never infer execution authority from an AWS profile name. Authority comes from `SPEC.md` and the active Issue/instruction.
+- Provider: AWS
+- Region: `ap-southeast-1` for lab resource proofs
+- Account/environment alias: personal LAB
+- AWS authentication for direct path: AWS Core MCP OAuth/IAM session
+- AWS authentication for GitHub path: GitHub Actions OIDC -> dedicated IAM role
 
 ## External Dependencies
 
-- `<service, MCP, model platform, database, API, or N/A>`
+- AWS managed MCP Server / AWS Core app
+- GitHub Actions
+- HashiCorp Terraform provider for AWS
 
 ## Credentials And Secrets
 
-Use approved local, cloud, or secret-management mechanisms. Never commit credentials, tokens, private keys, or raw secrets.
-
-## Readiness
-
-Set `Status` to `READY` only when the dependencies needed for the current milestone are known and usable. Use `PARTIAL` when missing dependencies do not block the approved work.
+No static AWS credentials are required for the proven OIDC path. Never commit credentials, tokens, private keys, or authentication state.
