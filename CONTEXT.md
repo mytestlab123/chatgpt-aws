@@ -28,19 +28,18 @@ Status: ACTIVE
 - PR #6 deployed Terraform-managed SSM parameter `/chatgpt-aws/drift-demo`; main workflow `34675429394` passed and AWS MCP verified value `desired-v1`, version `1`.
 - AWS MCP deliberately changed the parameter to `drifted-by-mcp`, version `2`.
 - PR #7 workflow `34675498728` detected the drift with exact plan `0 to add, 1 to change, 0 to destroy`.
+- PR #7 merged; main workflow `34675632976` applied successfully and provider readback passed.
+- Independent AWS Core MCP final verification confirmed `/chatgpt-aws/drift-demo` is restored to `desired-v1`, version `3`.
 - CloudTrail exposed an ID-enriched GitHub WebIdentity principal during the initial OIDC trust failure; the reusable troubleshooting lesson is documented in `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`.
+- Full drift/reconciliation evidence is in `docs/DRIFT_DEMO.md`.
 
 ## Active Work
 
-- Issue: #5 — persistent IaC + AWS MCP drift detection and repair
-- PR: #7 — verify and reconcile AWS MCP drift
-- Branch: `verify-drift-reconcile`
-- Current milestone: merge the proven drift-detection change so the normal main-branch Terraform apply restores desired state, then independently verify final state through AWS Core MCP.
+- Issue: #5 — ready to close after final evidence commit/PR.
+- Current milestone: persistent IaC + AWS MCP drift detection and repair is **PASS**.
 
 ## Next Action
 
-1. Merge PR #7 after its drift plan and documentation are reviewable.
-2. Wait for the main-branch Terraform apply.
-3. Verify `/chatgpt-aws/drift-demo` is restored to `desired-v1` through AWS Core MCP.
-4. Record final evidence and close Issue #5.
-5. Next milestone: test MCP-specific IAM controls or consume this knowledge from the separate `lab1_agent` ChatGPT session.
+1. Merge the final evidence update and close Issue #5.
+2. Next preferred milestone: test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP`.
+3. In parallel or afterward, let the separate `lab1_agent` ChatGPT session consume this private knowledge and create its own repo-specific OIDC role only when its project milestone requires AWS deployment.

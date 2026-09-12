@@ -1,14 +1,21 @@
 # Roadmap
 
+## Completed
+
+- Direct AWS Core MCP read/write proofs.
+- GitHub Actions -> OIDC -> AWS proof without static AWS keys.
+- Terraform provisioning/destroy proof with independent AWS MCP cleanup verification.
+- Cross-session portable AWS MCP/GitHub knowledge pack.
+- Persistent Terraform state + repo-specific OIDC in `mytestlab123/chatgpt-aws`.
+- Direct AWS MCP drift -> Terraform detection -> GitHub/OIDC/Terraform repair -> independent AWS MCP final verification.
+
 ## Now
 
-- Complete Issue #5: persistent Terraform + repo-specific GitHub OIDC + direct AWS MCP drift detection/reconciliation.
-- Record the final repair evidence and cross-session learning.
+- Test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP` so MCP-originated actions can have different permissions from normal human/API actions.
 
 ## Next
 
-- Test MCP-specific IAM controls using `aws:ViaAWSMCPService` / `aws:CalledViaAWSMCP` so MCP-originated actions can have different permissions from normal human/API actions.
-- Use `mytestlab123/lab1_agent` as the first independent ChatGPT-session consumer of the shared AWS knowledge and, when its own project scope is ready, give it a repo-specific OIDC deployment role.
+- Use `mytestlab123/lab1_agent` as the first independent ChatGPT-session consumer of the shared AWS knowledge and, when its own project scope is ready, create a repo-specific OIDC deployment role.
 
 ## Later
 
