@@ -1,6 +1,6 @@
 # Dedicated OIDC + MCP CodeBuild Lab
 
-Status: **ACTIVE / Issue #18**  
+Status: **VERIFIED ON PR / Issue #18**  
 Environment: **PERSONAL / LAB**  
 Region: `ap-southeast-1`
 
@@ -70,32 +70,61 @@ Result: **AccessDenied as designed** because of the MCP-specific explicit deny.
 
 This is intentionally a negative test and does not indicate broken CodeBuild permissions for the OIDC path.
 
-## GitHub workflow
+## GitHub OIDC positive test
 
-Workflow:
+PR #19 workflow run:
+
+`34685896954` — **PASS**
+
+The workflow successfully:
+
+1. obtained a GitHub OIDC token;
+2. assumed `github-actions-chatgpt-aws-codebuild-lab`;
+3. verified the assumed identity with STS;
+4. called `StartBuild` for `chatgpt-aws-oidc-mcp-smoke`;
+5. waited for the build to complete;
+6. required `SUCCEEDED`.
+
+CodeBuild build ID:
+
+`chatgpt-aws-oidc-mcp-smoke:11d15aa7-5e10-467a-885c-c0c4e6ddf5a2`
+
+Final status: **SUCCEEDED**.
+
+All PR checks also passed:
+
+- Dedicated OIDC CodeBuild lab: PASS
+- Docs build validation: PASS
+- Docs AWS site: PASS
+- Automation CI/CD lab: PASS
+- Terraform drift demo: PASS
+
+No static AWS access key or GitHub secret was required.
+
+## Independent AWS Core verification
+
+After the GitHub workflow completed, AWS Core MCP independently verified:
+
+- latest build ID matched the GitHub-triggered build;
+- CodeBuild status was `SUCCEEDED`;
+- CloudWatch log stream existed;
+- 52 log events were present;
+- logs contained the marker `OIDC-CODEBUILD-PASS`;
+- logs contained STS/build identity evidence;
+- BUILD and POST_BUILD phases were `SUCCEEDED`.
+
+This readback used the MCP path, independent of the GitHub workflow credentials.
+
+## Workflow
 
 `.github/workflows/codebuild-oidc-mcp-lab.yml`
 
-The workflow:
+The workflow has only the GitHub permissions needed for OIDC and repository read:
 
-1. requests a GitHub OIDC token;
-2. assumes `github-actions-chatgpt-aws-codebuild-lab`;
-3. runs STS `GetCallerIdentity`;
-4. calls CodeBuild `StartBuild` for only `chatgpt-aws-oidc-mcp-smoke`;
-5. polls `BatchGetBuilds` until a terminal state;
-6. requires `SUCCEEDED`.
+- `id-token: write`
+- `contents: read`
 
-No static AWS access key or GitHub secret is required.
-
-## Verification after the workflow
-
-AWS Core MCP should independently verify:
-
-- OIDC role trust and inline permissions;
-- CodeBuild project configuration;
-- latest build ID/status;
-- CloudWatch log group and stream/event evidence;
-- MCP `StartBuild` remains denied.
+The AWS role itself is scoped to the dedicated CodeBuild project.
 
 ## Retained resources
 
