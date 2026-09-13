@@ -115,14 +115,14 @@ jobs:
           BODY=$(cat <<EOF
           Automated review-gated documentation promotion.
 
-          Source repository: `${GITHUB_REPOSITORY}` (private)
-          Source commit: `${GITHUB_SHA}`
-          Promotion branch: `${DEST_BRANCH}`
+          Source repository: ${GITHUB_REPOSITORY} (private)
+          Source commit: ${GITHUB_SHA}
+          Promotion branch: ${DEST_BRANCH}
 
           Private-side checks already passed:
           - explicit publication allowlist
           - public-safety scan
-          - `mkdocs build --strict`
+          - mkdocs build --strict
 
           The public repository owns its Pages workflow. Merge this destination PR only after its own pull-request checks pass.
           EOF
