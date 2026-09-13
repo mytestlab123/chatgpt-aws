@@ -1,0 +1,148 @@
+name: Public docs integrity
+
+on:
+  pull_request:
+    paths:
+      - "public-docs/**"
+      - "scripts/validate_public_docs.py"
+      - "scripts/build_publication_manifest.py"
+      - ".github/workflows/public-docs-integrity.yml"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish curated public docs"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-docs-integrity-${{ github.event.workflow_run.id || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    env:
+      DEST_REPO: mytestlab123/chatgpt-aws-docs
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout private source repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: public-docs/requirements-docs.txt
+
+      - name: Validate curated publication tree
+        run: python scripts/validate_public_docs.py
+
+      - name: Build deterministic provenance manifest
+        id: manifest
+        run: |
+          python scripts/build_publication_manifest.py \
+            --source-sha "$SOURCE_SHA" \
+            --source-repository "$GITHUB_REPOSITORY" \
+            --output "${RUNNER_TEMP}/publication-manifest.json"
+          CONTENT_DIGEST="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["content_digest"])' "${RUNNER_TEMP}/publication-manifest.json")"
+          echo "content_digest=$CONTENT_DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r public-docs/requirements-docs.txt
+
+      - name: Build curated Material site
+        run: mkdocs build --strict -f public-docs/mkdocs.yml --site-dir "${{ runner.temp }}/public-docs-site"
+
+      - name: Preview public repository changes
+        run: |
+          DEST="${RUNNER_TEMP}/public-docs-destination"
+          git clone --depth 1 "https://github.com/${DEST_REPO}.git" "$DEST"
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            public-docs/ "$DEST/"
+          cd "$DEST"
+          git add -A
+
+          echo "### Public documentation dry-run" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source commit: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Content digest: ${{ steps.manifest.outputs.content_digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+          if git diff --cached --quiet; then
+            echo "Result: no public repository changes." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "Result: publication would change:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          git diff --cached --name-status >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          git diff --cached --stat >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload provenance preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-docs-provenance-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/publication-manifest.json
+          retention-days: 7
+
+  verify-published:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.event == 'workflow_dispatch' ||
+       (github.event.workflow_run.event == 'push' && vars.PUBLIC_DOCS_AUTOPUBLISH == 'true'))
+    runs-on: ubuntu-latest
+    env:
+      DEST_REPO: mytestlab123/chatgpt-aws-docs
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      PAGES_BASE: https://mytestlab123.github.io/chatgpt-aws-docs
+    steps:
+      - name: Checkout published private source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Validate curated publication tree
+        run: python3 scripts/validate_public_docs.py
+
+      - name: Build provenance evidence
+        id: manifest
+        run: |
+          python3 scripts/build_publication_manifest.py \
+            --source-sha "$SOURCE_SHA" \
+            --source-repository "$GITHUB_REPOSITORY" \
+            --output "${RUNNER_TEMP}/publication-manifest.json"
+          CONTENT_DIGEST="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["content_digest"])' "${RUNNER_TEMP}/publication-manifest.json")"
+          echo "content_digest=$CONTENT_DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Verify destination repository matches curated source
+        run: |
+          DEST="${RUNNER_TEMP}/destination"
+          EXPECTED="${RUNNER_TEMP}/expected"
+          git clone --depth 1 "https://github.com/${DEST_REPO}.git" "$DEST"
+          mkdir -p "$EXPECTED"
+          rsync -a public-docs/ "$EXPECTED/"
+          diff -qr --exclude='.git' --exclude='.github' "$EXPECTED" "$DEST"
+
+      - name: Verify live GitHub Pages smoke
+        run: |
+          for path in / /publishing-model/ /publication-integrity/; do
+            echo "Checking ${PAGES_BASE}${path}"
+            curl --fail --silent --show-error --location "${PAGES_BASE}${path}" > /dev/null
+          done
+
+      - name: Verification summary
+        run: |
+          echo "### Published documentation verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source commit: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Content digest: ${{ steps.manifest.outputs.content_digest }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Destination repository: exact curated-tree match" >> "$GITHUB_STEP_SUMMARY"
+          echo "GitHub Pages: key routes reachable" >> "$GITHUB_STEP_SUMMARY"

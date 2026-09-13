@@ -1,39 +1,31 @@
-# Publication Integrity and Provenance
+# Publication Integrity
 
-A documentation pipeline should prove three things: what changed, what was published, and what is live.
+A green deployment is useful, but it is stronger to verify the result independently.
 
-## Review before publishing
+## Review-time preview
 
-On a pull request, compare the curated public documentation tree with the current public documentation repository. This preview is read-only and should report added, modified, and deleted files.
+Before publication, compare the curated documentation tree with the current public repository. Report added, changed, and removed files. This preview is read-only.
 
-## Provenance manifest
+## Deterministic provenance
 
-Generate a deterministic JSON manifest for every publication. It records the source repository, source commit, SHA256 for each allowlisted file, and one aggregate content digest.
-
-The manifest does not use the current time. The same source commit and the same curated files therefore produce the same manifest.
+CI creates a JSON evidence file containing the source revision, SHA256 for each allowlisted file, and an aggregate digest. The evidence contains no wall-clock timestamp, so the same revision and content produce the same result.
 
 ## Repository verification
 
-After publication, verify that destination `main` points to the commit created by the publisher. This proves the repository update landed as expected.
+After an eligible publication run, a separate workflow checks out the exact source revision and compares its curated documentation with the public repository. Destination-owned `.github/` files are excluded from this comparison.
 
-## Live Pages verification
+## Live-site smoke test
 
-GitHub Pages deploys asynchronously. Poll the live manifest and compare its source commit and content digest with the expected values. This proves the rendered site has caught up with the repository publication.
+The verification workflow also requests the home page and key documentation routes. This checks availability after the Pages deployment. It is a smoke test rather than a byte-for-byte HTML comparison because MkDocs renders Markdown into HTML.
 
 ## No-op behavior
 
-Rerunning the same source revision should not create another destination commit when the curated files and manifest are unchanged.
-
-## Ownership boundary
-
-The private repository decides what content is safe to publish. The public repository owns its GitHub Pages deployment workflow. The publisher preserves the destination `.github/` directory.
+If the destination already matches the curated source, the publisher should not create another destination commit. Deterministic provenance makes repeated validation easier to reason about.
 
 ## Recovery
 
-If verification fails, compare the curated source, destination repository, and live manifest. Correct the private source of truth, publish again, and repeat repository and live-site verification.
-
-For an urgent rollback, revert the destination publication first, then fix the curated private source before the next publish.
+If a check fails, compare the source revision, the public repository, and the public routes. Correct the curated source, publish again, and repeat verification.
 
 ## Core lesson
 
-> **A successful workflow proves the pipeline ran. Provenance plus live verification proves what actually became public.**
+> **Preview the change, fingerprint the source, verify the repository, and check the live routes.**
