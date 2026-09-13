@@ -1,5 +1,7 @@
 # ChatGPT-Codex Collaboration
 
+Canonical bootstrap: read `PROMPT.md` first. This file adds repository-specific ChatGPT/Codex collaboration rules; `PROMPT.md` is the one-URL AWS MCP + GitHub OIDC/IaC operating model for reuse in future repositories.
+
 Purpose: let Amit, ChatGPT, Codex, and repository workers deliver useful milestones with minimal handoff overhead.
 
 ## Default Behavior
