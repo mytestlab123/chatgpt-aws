@@ -1,109 +1,102 @@
 # Public Documentation Publishing
 
-Status: **DESTINATION LIVE / CURATED PUBLISHING + INTEGRITY CHECKS**
+Status: **DESTINATION LIVE / REVIEW-GATED CURATED PROMOTION**
 
 ## Goal
 
-Keep the engineering repository private while publishing only reviewed learning material to the public documentation repository and GitHub Pages site.
+Keep the engineering repository private while publishing only reviewed learning material to the public docs repository and GitHub Pages.
 
 ```text
 PRIVATE chatgpt-aws
-        |
-        | reviewed public-docs/ tree
-        v
-PUBLIC chatgpt-aws-docs
-        |
-        v
-GitHub Pages
+        -> curated public-docs/
+        -> PUBLIC sync/chatgpt-aws
+        -> PUBLIC pull request
+        -> PUBLIC main
+        -> GitHub Pages
 ```
 
-Live site:
+Live site: `https://mytestlab123.github.io/chatgpt-aws-docs/`
+
+## Controls
+
+1. `public-docs/PUBLISH_ALLOWLIST.txt` defines every file allowed to leave the private repo.
+2. `scripts/validate_public_docs.py` rejects missing/unexpected files, symlinks, binary/non-UTF-8 content, and common private-data patterns.
+3. `scripts/build_publication_manifest.py` creates deterministic SHA256 provenance.
+4. `.github/workflows/public-docs-integrity.yml` performs read-only dry-run and promotion verification.
+5. `.github/workflows/publish-public-docs.yml` updates only the public sync branch and opens or refreshes one public PR.
+6. `chatgpt-aws-docs` owns its own PR build and Pages deployment workflow.
+
+## Review-time path
 
 ```text
-https://mytestlab123.github.io/chatgpt-aws-docs/
+curated change
+ -> allowlist + safety scan
+ -> provenance digest
+ -> mkdocs build --strict
+ -> read-only diff against public main
 ```
 
-## Publication controls
+No cross-repository write credential is needed for this preview.
 
-The private source uses these controls:
+## Review-gated promotion
 
-1. `public-docs/PUBLISH_ALLOWLIST.txt` defines every source-controlled file permitted in the curated tree.
-2. `scripts/validate_public_docs.py` rejects missing or unexpected files, symlinks, non-UTF-8 or binary content, and common private-data patterns.
-3. `.github/workflows/publish-public-docs.yml` validates relevant pull requests and performs the controlled cross-repository publication path.
-4. The public repository owns its own `.github/` Pages workflow; the private publisher updates documentation content only.
-5. `.github/workflows/public-docs-integrity.yml` adds read-only preview and post-publication verification.
+The publisher no longer pushes directly to public `main`.
 
-## Pull-request validation and dry-run
+It uses one deterministic destination branch:
 
 ```text
-public-docs change
-        |
-        v
-allowlist + safety validation
-        |
-        v
-provenance manifest
-        |
-        v
-mkdocs build --strict
-        |
-        v
-read-only diff against public repository
+sync/chatgpt-aws
 ```
 
-The dry-run does not need the cross-repository publishing credential. It clones the public repository read-only and reports the files that a publication would add, change, or delete.
+For an eligible manual or enabled-main run it:
 
-## Deterministic provenance
+1. starts from current public `main`;
+2. applies the exact curated tree while preserving destination `.github/`;
+3. pushes only `sync/chatgpt-aws`;
+4. creates a destination PR if none exists, otherwise updates the same open PR;
+5. verifies the remote promotion branch SHA.
 
-`scripts/build_publication_manifest.py` calculates SHA256 for every allowlisted public file and produces one aggregate content digest together with the source repository and source commit.
+If public `main` already matches the curated source, no new destination commit or PR is required.
 
-The manifest contains no current timestamp. The same source revision and curated tree produce the same evidence, which makes repeated validation understandable and supports no-op reasoning.
+## Credential boundary
 
-The preview workflow stores this manifest as short-lived CI evidence rather than adding it to the curated source tree.
+`PUBLIC_DOCS_TOKEN` is stored only in the private repo's GitHub settings. For the current fine-grained token model, restrict it to `mytestlab123/chatgpt-aws-docs` with:
 
-## Publication path
+- **Contents: read/write** for the sync branch;
+- **Pull requests: read/write** for the destination PR.
 
-Publishing remains manual by default. Optional automatic publishing can be enabled with the existing repository variable. Cross-repository authorization stays in GitHub settings and is never committed to source.
+For a larger team, prefer a GitHub App installation token over a personal token lifecycle.
 
-After synchronization, the publisher verifies that destination `main` points to the exact commit it created.
-
-## Independent verification
-
-After an eligible successful publisher run, the integrity workflow can independently:
-
-1. check out the exact private source revision used by the publisher;
-2. validate the curated tree again;
-3. rebuild provenance evidence;
-4. compare the public repository content with the curated source while ignoring destination-owned `.github/` configuration;
-5. smoke-test key GitHub Pages routes.
-
-This separates two questions:
+## Two approval questions
 
 ```text
-Did the publishing workflow run successfully?
+PRIVATE source review
+  -> May this content leave the private repository?
 
-Does the destination repository and public site now reflect the intended documentation?
+PUBLIC destination PR
+  -> May this exact change become the public site's main branch?
 ```
 
-## Ownership boundary
+Those are separate governance decisions.
 
-```text
-private repo -> decides WHAT content is safe to publish
-public repo  -> decides HOW that content is deployed to Pages
-```
+## Integrity after promotion
 
-The publisher deliberately preserves destination `.github/` configuration.
+After a successful promoter run, the integrity workflow independently checks the exact private source revision, rebuilds provenance, compares the destination sync branch with the curated tree, and confirms an open PR exists from `sync/chatgpt-aws` to `main`.
+
+It does not claim Pages changed yet. The public repository owns PR validation, merge, and Pages deployment.
 
 ## Recovery
 
-The curated private tree is authoritative. If public content is incorrect, fix `public-docs/` and republish. If an urgent rollback is required, revert the destination publication and then correct the curated source before the next publish.
+Before merge, close the public PR or fix the curated private source and rerun promotion.
 
-If integrity verification fails, compare the exact private source revision, destination repository, and live Pages routes before retrying. Do not repair only the public copy and leave the private source wrong.
+After merge, revert the public commit if urgent rollback is required, then fix the private curated source before the next promotion.
+
+Do not permanently repair only the public copy; a later sync can reintroduce the problem.
 
 ## Repository creation lesson
 
-For a documentation-only repository, prefer an **EMPTY repository** unless template contracts are intentionally required. Starting from a general project template is workable but introduces unrelated files that later need reconciliation.
+For a docs-only repository, prefer an **EMPTY repository** unless template contracts are intentionally required.
 
 ## Learning rule
 
-> **A green publisher run shows that the pipeline executed. A dry-run, deterministic provenance, destination comparison, and live-site smoke test provide stronger evidence of what became public.**
+> **Approval to leave a private repository and approval to become a public site's `main` branch are separate decisions.**
