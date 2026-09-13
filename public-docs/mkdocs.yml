@@ -47,4 +47,5 @@ nav:
   - AWS Control Paths: control-paths.md
   - GitHub OIDC + AWS: github-oidc.md
   - Static Hosting: static-hosting.md
+  - Private to Public Publishing: publishing-model.md
   - Cloudflare Pages + Access: cloudflare-pages-access.md

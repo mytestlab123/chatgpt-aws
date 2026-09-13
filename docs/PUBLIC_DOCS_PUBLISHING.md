@@ -1,107 +1,73 @@
-# Public Documentation Mirror
+# Public Documentation Publishing
 
-Status: **SOURCE IMPLEMENTED / DESTINATION REPOSITORY PENDING**
+Status: **DESTINATION LIVE / AUTOMATION VALIDATION IN PROGRESS**
 
 ## Goal
 
-Keep the engineering repository private while publishing only reusable learning material to a separate public repository and GitHub Pages site.
+Keep the engineering repository private while publishing only reviewed learning material to the public documentation repository and GitHub Pages site.
 
 ```text
-PRIVATE mytestlab123/chatgpt-aws
+PRIVATE chatgpt-aws
         |
-        | explicit curated tree only
+        | reviewed public-docs/ tree
         v
-    public-docs/
-        |
-        v
-PUBLIC mytestlab123/chatgpt-aws-docs
+PUBLIC chatgpt-aws-docs
         |
         v
 GitHub Pages
 ```
 
-## Safety boundary
-
-The publisher copies only `public-docs/`. It never mirrors the private repository root.
-
-Do not place account identifiers, credentials, secrets, private endpoints, private-only evidence, or internal runbooks in `public-docs/`.
-
-## Source files
-
-- curated public source: `public-docs/`
-- public Pages workflow template: `public-docs/.github/workflows/pages.yml`
-- private publisher: `.github/workflows/publish-public-docs.yml`
-
-## One-time setup still required
-
-The connected GitHub tool does not currently expose repository creation or repository-secret creation.
-
-Create this repository once in GitHub:
-
-```text
-Owner: mytestlab123
-Repository: chatgpt-aws-docs
-Visibility: Public
-Initialize with README: Yes
-```
-
-Then configure a narrowly scoped cross-repository publishing credential in the private source repository under the secret name expected by the workflow:
-
-```text
-PUBLIC_DOCS_TOKEN
-```
-
-The credential should be limited to the public destination repository and must never be committed to either repository.
-
-Optional private-repository variable:
-
-```text
-PUBLIC_DOCS_AUTOPUBLISH=true
-```
-
-Without that variable, publishing stays manual through `workflow_dispatch`; validation still runs automatically.
-
-## First publish
-
-Run:
-
-```text
-Actions -> Publish curated public docs -> Run workflow
-```
-
-The workflow validates the Material site, checks out the destination, replaces its contents with the curated `public-docs/` tree, commits, and pushes to `main`.
-
-## Enable GitHub Pages once
-
-In the public destination repository:
-
-```text
-Settings -> Pages -> Build and deployment -> Source = GitHub Actions
-```
-
-Expected site:
+Live site:
 
 ```text
 https://mytestlab123.github.io/chatgpt-aws-docs/
 ```
 
-## Long-term flow
+## Publication controls
+
+The private source uses four layers:
+
+1. `public-docs/PUBLISH_ALLOWLIST.txt` defines every file permitted in the curated tree.
+2. `scripts/validate_public_docs.py` rejects missing or unexpected files, symlinks, non-UTF-8 or binary content, and common private-data patterns.
+3. `.github/workflows/publish-public-docs.yml` validates every relevant pull request before publication.
+4. The public repository owns its own `.github/` Pages workflow; the private publisher updates documentation content only.
+
+## Validation path
 
 ```text
-edit public-docs/* in private repo
+public-docs change
         |
         v
-PR validation
+allowlist check
         |
         v
-merge main
+public-safety scan
         |
         v
-publish curated tree
-        |
-        v
-public chatgpt-aws-docs
-        |
-        v
-GitHub Pages
+mkdocs build --strict
 ```
+
+Pull-request validation does not modify the public repository.
+
+## Publication path
+
+Publishing is manual by default. Optional automatic publishing can be enabled through a repository variable. Cross-repository authorization is configured in GitHub settings and is never committed to source.
+
+After synchronization the workflow verifies that destination `main` points to the exact commit it created.
+
+## Ownership boundary
+
+```text
+private repo -> decides WHAT content is safe to publish
+public repo  -> decides HOW that content is deployed to Pages
+```
+
+The publisher deliberately preserves destination `.github/` configuration.
+
+## Recovery
+
+The curated private tree is authoritative. If public content is incorrect, fix `public-docs/` and republish. If an urgent rollback is required, revert the destination commit and then correct the curated source before the next publication.
+
+## Repository creation lesson
+
+For a documentation-only repository, prefer an **EMPTY repository** unless template contracts are intentionally required. Starting from a general project template is workable but introduces unrelated files that later need reconciliation.

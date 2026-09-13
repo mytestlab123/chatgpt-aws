@@ -1,0 +1,12 @@
+# Relative paths under public-docs/ that are approved for publication.
+# Keep this list explicit. The validator fails on missing or unexpected files.
+PUBLISH_ALLOWLIST.txt
+README.md
+mkdocs.yml
+requirements-docs.txt
+docs/index.md
+docs/control-paths.md
+docs/github-oidc.md
+docs/static-hosting.md
+docs/cloudflare-pages-access.md
+docs/publishing-model.md
