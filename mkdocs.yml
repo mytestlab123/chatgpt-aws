@@ -67,6 +67,7 @@ nav:
       - Automation + CI/CD Lab: AUTOMATION_CICD_LAB.md
       - Dedicated OIDC + MCP CodeBuild: OIDC_MCP_CODEBUILD_LAB.md
       - Step Functions + SQS OIDC/MCP: SFN_SQS_OIDC_MCP_LAB.md
+      - Cloudflare Pages + Access: CLOUDFLARE_PAGES_ACCESS_LAB.md
 
 extra:
   generator: false
