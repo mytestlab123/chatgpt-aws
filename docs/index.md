@@ -16,6 +16,12 @@ A reusable, evidence-backed lab for working with **ChatGPT + AWS Core MCP + GitH
 
     [Open portable knowledge →](PORTABLE_AWS_MCP_KNOWLEDGE.md)
 
+-   **Static documentation hosting**
+
+    Learn GitHub Pages vs AWS S3 + CloudFront, plus private-sharing options such as GitHub Enterprise private Pages, Cloudflare Pages + Access, CloudFront signed content, and Netlify protection.
+
+    [Open static hosting guide →](STATIC_SITE_HOSTING_GUIDE.md)
+
 -   **Automation + CI/CD lab**
 
     ECR, S3, EventBridge, Lambda, DynamoDB, CloudWatch, GitHub OIDC, and MCP-aware IAM in one tested lab.
