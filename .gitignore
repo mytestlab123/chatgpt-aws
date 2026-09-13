@@ -1,12 +1,19 @@
-# Local and temporary material
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+tfplan
+plan.txt
 .env
 .env.*
 !.env.example
-*.log
-*.zip
-node_modules/
+*.pem
+*.key
 __pycache__/
-.pytest_cache/
-.terraform/
-.AGENTS-temp/
-tmp/
+*.pyc
+.venv/
+site/
+docs/PROMPT.md
+docs/downloads/
+docs/build-info.json

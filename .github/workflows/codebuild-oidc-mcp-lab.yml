@@ -1,80 +1,74 @@
 name: Dedicated OIDC CodeBuild lab
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/codebuild-oidc-mcp-lab.yml"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/codebuild-oidc-mcp-lab.yml"
   workflow_dispatch:
+    inputs:
+      execute:
+        description: Start one billable CodeBuild smoke build
+        type: boolean
+        default: false
 
 permissions:
-  id-token: write
   contents: read
 
 concurrency:
-  group: codebuild-oidc-mcp-lab-${{ github.ref }}
+  group: chatgpt-aws-codebuild
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-southeast-1
-  ROLE_ARN: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-codebuild-lab
-  CODEBUILD_PROJECT: chatgpt-aws-oidc-mcp-smoke
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_CODEBUILD_ROLE_ARN }}
+  AWS_ALLOWED_ACCOUNT_ID: ${{ vars.AWS_ALLOWED_ACCOUNT_ID }}
+  AWS_EXECUTION_REPOSITORY: ${{ vars.AWS_EXECUTION_REPOSITORY }}
+  AWS_LABS_ENABLED: ${{ vars.AWS_LABS_ENABLED }}
+  CODEBUILD_PROJECT: ${{ vars.AWS_CODEBUILD_PROJECT }}
 
 jobs:
   oidc-codebuild-smoke:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.repository == vars.AWS_EXECUTION_REPOSITORY && vars.AWS_LABS_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Configure dedicated AWS credentials with GitHub OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          role-to-assume: ${{ env.ROLE_ARN }}
+          persist-credentials: false
+      - name: Validate explicit AWS target
+        run: |
+          python3 scripts/check_aws_target.py
+          test -n "$CODEBUILD_PROJECT"
+      - name: Configure dedicated credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify dedicated assumed identity
+          allowed-account-ids: ${{ env.AWS_ALLOWED_ACCOUNT_ID }}
+      - name: Verify assumed identity and project
         run: |
           aws sts get-caller-identity
-
+          aws codebuild batch-get-projects --names "$CODEBUILD_PROJECT" --query 'projects[].name'
       - name: Start dedicated CodeBuild smoke build
+        if: inputs.execute
         id: start
-        shell: bash
         run: |
-          set -euo pipefail
-          BUILD_ID=$(aws codebuild start-build \
-            --project-name "$CODEBUILD_PROJECT" \
-            --query 'build.id' \
-            --output text)
+          BUILD_ID=$(aws codebuild start-build --project-name "$CODEBUILD_PROJECT" --query 'build.id' --output text)
           echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
-          echo "Started CodeBuild: $BUILD_ID"
-
       - name: Wait for CodeBuild result
-        shell: bash
+        if: inputs.execute
         env:
           BUILD_ID: ${{ steps.start.outputs.build_id }}
         run: |
           set -euo pipefail
           for attempt in $(seq 1 60); do
-            STATUS=$(aws codebuild batch-get-builds \
-              --ids "$BUILD_ID" \
-              --query 'builds[0].buildStatus' \
-              --output text)
+            STATUS=$(aws codebuild batch-get-builds --ids "$BUILD_ID" --query 'builds[0].buildStatus' --output text)
             echo "attempt=$attempt status=$STATUS"
             case "$STATUS" in
-              SUCCEEDED)
-                echo "### Dedicated OIDC CodeBuild smoke" >> "$GITHUB_STEP_SUMMARY"
-                echo "- Build: \`$BUILD_ID\`" >> "$GITHUB_STEP_SUMMARY"
-                echo "- Status: **SUCCEEDED**" >> "$GITHUB_STEP_SUMMARY"
-                exit 0
-                ;;
-              FAILED|FAULT|STOPPED|TIMED_OUT)
-                echo "CodeBuild ended with $STATUS"
-                exit 1
-                ;;
+              SUCCEEDED) echo 'CodeBuild smoke: PASS' >> "$GITHUB_STEP_SUMMARY"; exit 0 ;;
+              FAILED|FAULT|STOPPED|TIMED_OUT) exit 1 ;;
             esac
             sleep 5
           done
-          echo "Timed out waiting for CodeBuild"
+          echo 'Timed out; inspect CodeBuild before retrying. The remote build may still be running.'
           exit 1

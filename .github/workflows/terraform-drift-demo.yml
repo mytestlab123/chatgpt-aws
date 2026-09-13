@@ -1,89 +1,66 @@
 name: Terraform drift demo
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/terraform-drift-demo.yml"
-      - "infra/drift-demo/**"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/terraform-drift-demo.yml"
-      - "infra/drift-demo/**"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply the reviewed main revision (otherwise plan only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: chatgpt-aws-drift-demo
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-southeast-1
-  TF_IN_AUTOMATION: "true"
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  AWS_ALLOWED_ACCOUNT_ID: ${{ vars.AWS_ALLOWED_ACCOUNT_ID }}
+  AWS_EXECUTION_REPOSITORY: ${{ vars.AWS_EXECUTION_REPOSITORY }}
+  AWS_LABS_ENABLED: ${{ vars.AWS_LABS_ENABLED }}
+  TF_IN_AUTOMATION: 'true'
 
 jobs:
   terraform:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.repository == vars.AWS_EXECUTION_REPOSITORY && vars.AWS_LABS_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: infra/drift-demo
-
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: hashicorp/setup-terraform@v3
-
-      - name: Configure AWS credentials with GitHub OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          role-to-assume: arn:aws:iam::063884340510:role/github-actions-chatgpt-aws-lab
+          persist-credentials: false
+      - name: Validate explicit AWS target
+        run: python3 ../../scripts/check_aws_target.py
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.10.5'
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
+          allowed-account-ids: ${{ env.AWS_ALLOWED_ACCOUNT_ID }}
       - name: Verify assumed identity
         run: aws sts get-caller-identity
-
-      - name: Terraform init
-        run: terraform init -input=false
-
-      - name: Terraform format and validate
+      - name: Terraform init and validate
         run: |
+          terraform init -input=false
           terraform fmt -check
           terraform validate
-
-      - name: Terraform plan
-        id: plan
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set +e
-          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan
-          code=$?
-          set -e
-          if [ "$code" -eq 1 ]; then
-            echo "Terraform plan failed"
-            exit 1
-          fi
-          terraform show -no-color tfplan > plan.txt
-          echo "plan_exit_code=$code" >> "$GITHUB_OUTPUT"
-          echo "### Terraform plan" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$code" -eq 0 ]; then
-            echo "No changes." >> "$GITHUB_STEP_SUMMARY"
-          else
-            grep -E '^Plan:|^No changes' plan.txt | tail -1 >> "$GITHUB_STEP_SUMMARY" || true
-          fi
-
-      - name: Terraform apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: terraform apply -input=false -auto-approve
-
+      - name: Save plan without publishing raw state values
+        run: terraform plan -input=false -no-color -out=tfplan > plan.txt
+      - name: Apply the saved plan
+        if: inputs.apply
+        run: terraform apply -input=false tfplan
       - name: Provider readback after apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          aws ssm get-parameter \
-            --name /chatgpt-aws/drift-demo \
-            --query 'Parameter.{Name:Name,Value:Value,Version:Version}' \
-            --output json
+        if: inputs.apply
+        run: aws ssm get-parameter --name /chatgpt-aws/drift-demo --query 'Parameter.{Name:Name,Value:Value,Version:Version}' --output json
