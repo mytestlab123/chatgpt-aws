@@ -1,6 +1,17 @@
 # ChatGPT AWS Lab
 
-Personal LAB for proving how ChatGPT can inspect, mutate, and provision AWS through two independent control paths.
+Personal LAB for proving how ChatGPT can inspect, mutate, provision, verify, and document AWS through two independent control paths.
+
+## Start Here — One URL
+
+For a new ChatGPT/Codex/agent session, start with:
+
+**`PROMPT.md`**  
+`https://github.com/mytestlab123/chatgpt-aws/blob/main/PROMPT.md`
+
+`PROMPT.md` is the canonical portable bootstrap. It explains the verified operating model, startup identity checks, AWS MCP vs GitHub OIDC/IaC decision, security baseline, single-public-repository mode, and how to bootstrap a new AWS repository without copying this lab's identities.
+
+After that, read repository-specific authority such as `AGENTS.md`, `CONTEXT.md`, `SPEC.md`, and the active Issue/PR as needed.
 
 ## Documentation
 
@@ -13,37 +24,31 @@ The `docs/` knowledge base is published with **Material for MkDocs**.
 - Build/deploy workflow: `.github/workflows/docs-aws.yml`
 - Hosting evidence/runbook: `docs/HOSTING.md`
 
-The source repository remains private. The generated documentation is served publicly through CloudFront from a private S3 bucket protected by Origin Access Control (OAC).
+The source repository currently remains private. The generated documentation is served publicly through CloudFront from a private S3 bucket protected by Origin Access Control (OAC).
 
-The existing Markdown paths remain stable so other ChatGPT sessions can continue to reference files such as `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` and `docs/SESSION_BOOTSTRAP.md` directly.
+The existing Markdown paths remain stable so other sessions can continue to reference files such as `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` and `docs/SESSION_BOOTSTRAP.md` directly.
 
-### Why not GitHub Pages?
+## Proven control paths
 
-Material for MkDocs builds correctly, but this private organization repository currently reports GitHub Pages as disabled (`has_pages=false`). The connected GitHub app cannot change that repository administration setting. Rather than leave the docs behind a 404, the verified publication path is now:
+1. **Direct MCP:** ChatGPT -> AWS Core MCP -> AWS APIs for discovery, diagnosis, bounded experiments, and independent verification.
+2. **GitOps/IaC:** ChatGPT -> GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS for durable reviewed state.
 
-`GitHub main -> GitHub Actions -> OIDC -> Terraform -> private S3 -> CloudFront`
+Preferred rule:
 
-`.github/workflows/docs-pages.yml` remains only as a strict MkDocs build-validation workflow. GitHub Pages can be revisited later without changing the Markdown source.
+> **MCP discovers and verifies; Git/IaC declares; OIDC CI/CD applies.**
 
-## Directions
+## Template direction
 
-1. **Direct MCP:** ChatGPT -> AWS Core MCP -> AWS APIs.
-2. **GitOps/IaC:** ChatGPT -> GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS.
+For a personal learning project, one **public** repository can contain IaC, workflows, docs, and GitHub Pages when all committed content is safe for public disclosure.
 
-The direct MCP experiments live here. The minimal GitHub/OIDC proof lives in `amitkarpe/assignment-cicd` and is referenced from `docs/EXPERIMENTS.md`.
+For private/company/sensitive work, keep the engineering repository private and publish only an intentional curated subset when public documentation is required.
 
-## Start Here
+Do not reuse this lab's AWS account IDs, role ARNs, resource names, or OIDC roles in another repository. Create new repo-specific trust and state.
 
-1. Open the Material docs site for the human-friendly view.
-2. Read `AGENTS.md`.
-3. Read `CONTEXT.md` for current truth.
-4. Read `SPEC.md` before AWS mutation.
-5. Read `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` for the reusable cross-session AWS/GitHub operating model and verified environment facts.
-6. Read `docs/SESSION_BOOTSTRAP.md` when starting another ChatGPT session.
-7. Read `docs/EXPERIMENTS.md` for verified results and comparison.
-8. Read `docs/HOSTING.md` for the documentation publication path and 404 troubleshooting lesson.
-9. Read `ENV.md` for the active tool/cloud surface.
+## Current docs-repository transition
 
-For another ChatGPT session working on `mytestlab123/lab1_agent`, use this repository as the private AWS knowledge source and read `lab1_agent/docs/CHATGPT_AWS_BOOTSTRAP.md` in that target repository.
+`mytestlab123/chatgpt-aws-docs` remains a publication target while this repository is private. The curated source already exists under `public-docs/`, so there is nothing to manually merge back before a future consolidation.
 
-Keep experiments temporary, reversible, low-cost, and evidence-backed. Never commit credentials or authentication state.
+Do not delete the docs repository until a replacement public repository is live, GitHub Pages is verified there, and links are updated. See `PROMPT.md` for the retirement checklist.
+
+Keep experiments reversible, low-cost, reviewable, and evidence-backed. Never commit credentials or authentication state.
