@@ -52,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEST_REPO: mytestlab123/chatgpt-aws-docs
+      DEST_BRANCH: sync/chatgpt-aws
     steps:
       - name: Checkout private source repository
         uses: actions/checkout@v4
@@ -64,7 +65,8 @@ jobs:
         run: |
           if [ -z "$TOKEN" ]; then
             echo "PUBLIC_DOCS_TOKEN is not configured."
-            echo "Create a fine-grained token limited to mytestlab123/chatgpt-aws-docs with repository Contents read/write."
+            echo "Use a fine-grained token limited to mytestlab123/chatgpt-aws-docs."
+            echo "Required repository permissions: Contents read/write and Pull requests read/write."
             exit 1
           fi
 
@@ -76,19 +78,20 @@ jobs:
           path: destination
           ref: main
 
-      - name: Publish explicit curated tree only
+      - name: Prepare review-gated promotion branch
         id: sync
         run: |
-          # The destination owns its own .github/ workflow configuration.
-          # Everything else is an exact mirror of the reviewed public-docs/ tree.
-          rsync -a --delete \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            source/public-docs/ destination/
-
           cd destination
           git config user.name "chatgpt-aws-docs publisher"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/heads/${DEST_BRANCH}:refs/remotes/origin/${DEST_BRANCH}" || true
+          git switch -C "$DEST_BRANCH"
+
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            ../source/public-docs/ ./
+
           git add -A
 
           if git diff --cached --quiet; then
@@ -98,25 +101,80 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Publish curated docs from ${GITHUB_SHA}"
-          git push origin HEAD:main
+          git commit -m "Promote curated docs from ${GITHUB_SHA}"
+          git push --force-with-lease origin "HEAD:refs/heads/${DEST_BRANCH}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Verify destination main commit
+      - name: Create or update destination pull request
+        if: steps.sync.outputs.changed == 'true'
+        id: promotion
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_DOCS_TOKEN }}
+        run: |
+          BODY=$(cat <<EOF
+          Automated review-gated documentation promotion.
+
+          Source repository: `${GITHUB_REPOSITORY}` (private)
+          Source commit: `${GITHUB_SHA}`
+          Promotion branch: `${DEST_BRANCH}`
+
+          Private-side checks already passed:
+          - explicit publication allowlist
+          - public-safety scan
+          - `mkdocs build --strict`
+
+          The public repository owns its Pages workflow. Merge this destination PR only after its own pull-request checks pass.
+          EOF
+          )
+
+          PR_NUMBER=$(gh pr list \
+            --repo "$DEST_REPO" \
+            --head "$DEST_BRANCH" \
+            --base main \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_URL=$(gh pr create \
+              --repo "$DEST_REPO" \
+              --base main \
+              --head "$DEST_BRANCH" \
+              --title "Publish curated ChatGPT + AWS learning docs" \
+              --body "$BODY")
+          else
+            gh pr edit "$PR_NUMBER" \
+              --repo "$DEST_REPO" \
+              --title "Publish curated ChatGPT + AWS learning docs" \
+              --body "$BODY"
+            PR_URL=$(gh pr view "$PR_NUMBER" --repo "$DEST_REPO" --json url --jq '.url')
+          fi
+
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify promotion branch
+        if: steps.sync.outputs.changed == 'true'
         env:
           EXPECTED_SHA: ${{ steps.sync.outputs.commit_sha }}
         run: |
           cd destination
-          REMOTE_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
+          REMOTE_SHA=$(git ls-remote origin "refs/heads/${DEST_BRANCH}" | cut -f1)
           echo "Expected: $EXPECTED_SHA"
           echo "Remote:   $REMOTE_SHA"
           test -n "$EXPECTED_SHA"
           test "$REMOTE_SHA" = "$EXPECTED_SHA"
+          test -n "${{ steps.promotion.outputs.pr_url }}"
 
       - name: Publish summary
         run: |
           echo "Destination: https://github.com/${DEST_REPO}" >> "$GITHUB_STEP_SUMMARY"
           echo "Pages: https://mytestlab123.github.io/chatgpt-aws-docs/" >> "$GITHUB_STEP_SUMMARY"
           echo "Changed: ${{ steps.sync.outputs.changed }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Promotion branch: ${DEST_BRANCH}" >> "$GITHUB_STEP_SUMMARY"
           echo "Destination commit: ${{ steps.sync.outputs.commit_sha }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.sync.outputs.changed }}" = "true" ]; then
+            echo "Review PR: ${{ steps.promotion.outputs.pr_url }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Review PR: not required; destination already matches curated source." >> "$GITHUB_STEP_SUMMARY"
+          fi
