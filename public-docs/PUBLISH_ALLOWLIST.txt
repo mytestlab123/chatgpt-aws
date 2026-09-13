@@ -11,3 +11,4 @@ docs/static-hosting.md
 docs/cloudflare-pages-access.md
 docs/publishing-model.md
 docs/publication-integrity.md
+docs/review-gated-publishing.md
