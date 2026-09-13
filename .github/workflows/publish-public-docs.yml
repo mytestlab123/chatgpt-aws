@@ -4,29 +4,47 @@ on:
   pull_request:
     paths:
       - "public-docs/**"
+      - "scripts/validate_public_docs.py"
+      - "docs/PUBLIC_DOCS_PUBLISHING.md"
       - ".github/workflows/publish-public-docs.yml"
   push:
     branches: [main]
     paths:
       - "public-docs/**"
+      - "scripts/validate_public_docs.py"
+      - "docs/PUBLIC_DOCS_PUBLISHING.md"
       - ".github/workflows/publish-public-docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: public-docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout private source repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
           cache: pip
           cache-dependency-path: public-docs/requirements-docs.txt
-      - run: python -m pip install -r public-docs/requirements-docs.txt
-      - run: mkdocs build --strict -f public-docs/mkdocs.yml --site-dir "${{ runner.temp }}/public-docs-site"
+
+      - name: Validate publication allowlist and public safety
+        run: python scripts/validate_public_docs.py
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r public-docs/requirements-docs.txt
+
+      - name: Build curated Material site
+        run: mkdocs build --strict -f public-docs/mkdocs.yml --site-dir "${{ runner.temp }}/public-docs-site"
 
   publish:
     needs: validate
@@ -40,12 +58,13 @@ jobs:
         with:
           path: source
 
-      - name: Require destination token
+      - name: Require narrowly scoped destination token
         env:
           TOKEN: ${{ secrets.PUBLIC_DOCS_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
             echo "PUBLIC_DOCS_TOKEN is not configured."
+            echo "Create a fine-grained token limited to mytestlab123/chatgpt-aws-docs with repository Contents read/write."
             exit 1
           fi
 
@@ -55,17 +74,49 @@ jobs:
           repository: ${{ env.DEST_REPO }}
           token: ${{ secrets.PUBLIC_DOCS_TOKEN }}
           path: destination
+          ref: main
 
       - name: Publish explicit curated tree only
+        id: sync
         run: |
-          rsync -a --delete --exclude '.git/' source/public-docs/ destination/
+          # The destination owns its own .github/ workflow configuration.
+          # Everything else is an exact mirror of the reviewed public-docs/ tree.
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            source/public-docs/ destination/
+
           cd destination
           git config user.name "chatgpt-aws-docs publisher"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet && git diff --cached --quiet; then
+          git add -A
+
+          if git diff --cached --quiet; then
             echo "No public documentation changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git add -A
+
           git commit -m "Publish curated docs from ${GITHUB_SHA}"
           git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify destination main commit
+        env:
+          EXPECTED_SHA: ${{ steps.sync.outputs.commit_sha }}
+        run: |
+          cd destination
+          REMOTE_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
+          echo "Expected: $EXPECTED_SHA"
+          echo "Remote:   $REMOTE_SHA"
+          test -n "$EXPECTED_SHA"
+          test "$REMOTE_SHA" = "$EXPECTED_SHA"
+
+      - name: Publish summary
+        run: |
+          echo "Destination: https://github.com/${DEST_REPO}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pages: https://mytestlab123.github.io/chatgpt-aws-docs/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Changed: ${{ steps.sync.outputs.changed }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Destination commit: ${{ steps.sync.outputs.commit_sha }}" >> "$GITHUB_STEP_SUMMARY"
