@@ -134,10 +134,23 @@ jobs:
 
       - name: Verify live GitHub Pages smoke
         run: |
-          for path in / /publishing-model/ /publication-integrity/; do
-            echo "Checking ${PAGES_BASE}${path}"
-            curl --fail --silent --show-error --location "${PAGES_BASE}${path}" > /dev/null
+          for attempt in $(seq 1 18); do
+            all_ok=true
+            for path in / /publishing-model/ /publication-integrity/; do
+              echo "Attempt $attempt: ${PAGES_BASE}${path}"
+              if ! curl --fail --silent --show-error --location "${PAGES_BASE}${path}?verify=${SOURCE_SHA}" > /dev/null; then
+                all_ok=false
+                break
+              fi
+            done
+            if $all_ok; then
+              echo "All key Pages routes are reachable."
+              exit 0
+            fi
+            sleep 10
           done
+          echo "GitHub Pages did not expose all expected routes within the verification window."
+          exit 1
 
       - name: Verification summary
         run: |
