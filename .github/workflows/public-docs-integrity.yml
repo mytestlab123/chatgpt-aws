@@ -93,7 +93,7 @@ jobs:
           path: ${{ runner.temp }}/publication-manifest.json
           retention-days: 7
 
-  verify-published:
+  verify-promotion:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
@@ -102,10 +102,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEST_REPO: mytestlab123/chatgpt-aws-docs
+      DEST_BRANCH: sync/chatgpt-aws
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-      PAGES_BASE: https://mytestlab123.github.io/chatgpt-aws-docs
     steps:
-      - name: Checkout published private source revision
+      - name: Checkout promoted private source revision
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -123,39 +123,44 @@ jobs:
           CONTENT_DIGEST="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["content_digest"])' "${RUNNER_TEMP}/publication-manifest.json")"
           echo "content_digest=$CONTENT_DIGEST" >> "$GITHUB_OUTPUT"
 
-      - name: Verify destination repository matches curated source
+      - name: Determine whether promotion is required
+        id: destination
         run: |
-          DEST="${RUNNER_TEMP}/destination"
+          MAIN="${RUNNER_TEMP}/destination-main"
           EXPECTED="${RUNNER_TEMP}/expected"
-          git clone --depth 1 "https://github.com/${DEST_REPO}.git" "$DEST"
+          git clone --depth 1 "https://github.com/${DEST_REPO}.git" "$MAIN"
           mkdir -p "$EXPECTED"
           rsync -a public-docs/ "$EXPECTED/"
-          diff -qr --exclude='.git' --exclude='.github' "$EXPECTED" "$DEST"
 
-      - name: Verify live GitHub Pages smoke
+          if diff -qr --exclude='.git' --exclude='.github' "$EXPECTED" "$MAIN" > /dev/null; then
+            echo "promotion_required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SYNC="${RUNNER_TEMP}/destination-sync"
+          git clone --depth 1 --branch "$DEST_BRANCH" "https://github.com/${DEST_REPO}.git" "$SYNC"
+          diff -qr --exclude='.git' --exclude='.github' "$EXPECTED" "$SYNC"
+          echo "promotion_required=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify destination review PR is open
+        if: steps.destination.outputs.promotion_required == 'true'
+        id: pr
         run: |
-          for attempt in $(seq 1 18); do
-            all_ok=true
-            for path in / /publishing-model/ /publication-integrity/; do
-              echo "Attempt $attempt: ${PAGES_BASE}${path}"
-              if ! curl --fail --silent --show-error --location "${PAGES_BASE}${path}?verify=${SOURCE_SHA}" > /dev/null; then
-                all_ok=false
-                break
-              fi
-            done
-            if $all_ok; then
-              echo "All key Pages routes are reachable."
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "GitHub Pages did not expose all expected routes within the verification window."
-          exit 1
+          API="https://api.github.com/repos/${DEST_REPO}/pulls?state=open&base=main&head=mytestlab123:${DEST_BRANCH}"
+          RESPONSE="${RUNNER_TEMP}/promotion-pr.json"
+          curl --fail --silent --show-error --location "$API" > "$RESPONSE"
+          PR_URL=$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data, "No open destination promotion PR"; print(data[0]["html_url"])' "$RESPONSE")
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
 
       - name: Verification summary
         run: |
-          echo "### Published documentation verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Review-gated documentation promotion verification" >> "$GITHUB_STEP_SUMMARY"
           echo "Source commit: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
           echo "Content digest: ${{ steps.manifest.outputs.content_digest }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Destination repository: exact curated-tree match" >> "$GITHUB_STEP_SUMMARY"
-          echo "GitHub Pages: key routes reachable" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.destination.outputs.promotion_required }}" = "true" ]; then
+            echo "Promotion branch: exact curated-tree match" >> "$GITHUB_STEP_SUMMARY"
+            echo "Destination review PR: ${{ steps.pr.outputs.pr_url }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Public main already matches the curated source; no promotion PR is required." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Pages deployment remains destination-owned and occurs only after a destination PR is merged." >> "$GITHUB_STEP_SUMMARY"
