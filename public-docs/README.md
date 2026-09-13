@@ -4,6 +4,10 @@ Public, reusable learning material extracted from a private engineering lab.
 
 This repository is intentionally documentation-only. It does **not** mirror the private source repository and must not contain credentials, account IDs, private resource names, internal evidence, or private runbooks.
 
+Live site:
+
+`https://mytestlab123.github.io/chatgpt-aws-docs/`
+
 ## Local preview
 
 ```bash
@@ -19,6 +23,8 @@ mkdocs serve
 mkdocs build --strict
 ```
 
-## Publishing
+## Publishing model
 
-GitHub Pages is deployed by `.github/workflows/pages.yml` after Pages is enabled once in repository settings with **Source = GitHub Actions**.
+The private source publishes an explicit allowlisted documentation tree into this repository. This repository owns its own `.github/` GitHub Pages workflow, so content synchronization and site deployment remain separate responsibilities.
+
+See **Private to Public Publishing** in the documentation site for the reusable pattern.
