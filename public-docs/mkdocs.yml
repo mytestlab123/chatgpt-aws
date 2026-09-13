@@ -1,0 +1,50 @@
+site_name: ChatGPT + AWS Learning Docs
+site_description: Reusable learning notes for AWS MCP, GitHub OIDC, CI/CD, and static documentation hosting.
+site_url: https://mytestlab123.github.io/chatgpt-aws-docs/
+repo_url: https://github.com/mytestlab123/chatgpt-aws-docs
+repo_name: mytestlab123/chatgpt-aws-docs
+use_directory_urls: true
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - AWS Control Paths: control-paths.md
+  - GitHub OIDC + AWS: github-oidc.md
+  - Static Hosting: static-hosting.md
+  - Cloudflare Pages + Access: cloudflare-pages-access.md

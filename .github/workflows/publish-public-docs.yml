@@ -1,0 +1,71 @@
+name: Publish curated public docs
+
+on:
+  pull_request:
+    paths:
+      - "public-docs/**"
+      - ".github/workflows/publish-public-docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public-docs/**"
+      - ".github/workflows/publish-public-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: public-docs/requirements-docs.txt
+      - run: python -m pip install -r public-docs/requirements-docs.txt
+      - run: mkdocs build --strict -f public-docs/mkdocs.yml --site-dir "${{ runner.temp }}/public-docs-site"
+
+  publish:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.PUBLIC_DOCS_AUTOPUBLISH == 'true')
+    runs-on: ubuntu-latest
+    env:
+      DEST_REPO: mytestlab123/chatgpt-aws-docs
+    steps:
+      - name: Checkout private source repository
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Require destination token
+        env:
+          TOKEN: ${{ secrets.PUBLIC_DOCS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "PUBLIC_DOCS_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Checkout public documentation repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEST_REPO }}
+          token: ${{ secrets.PUBLIC_DOCS_TOKEN }}
+          path: destination
+
+      - name: Publish explicit curated tree only
+        run: |
+          rsync -a --delete --exclude '.git/' source/public-docs/ destination/
+          cd destination
+          git config user.name "chatgpt-aws-docs publisher"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No public documentation changes."
+            exit 0
+          fi
+          git add -A
+          git commit -m "Publish curated docs from ${GITHUB_SHA}"
+          git push origin HEAD:main
