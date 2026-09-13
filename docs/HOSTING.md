@@ -9,6 +9,9 @@ Verified: **2026-09-12**
 
 The documentation source remains the repository's `docs/` directory and is rendered with **Material for MkDocs**.
 
+!!! info "Reusable learning guide"
+    This file is the implementation/evidence record for **this repository**. For a beginner-friendly tutorial comparing **GitHub Pages vs AWS S3 + CloudFront**, including private-sharing choices such as **GitHub Enterprise private Pages, Cloudflare Pages + Access, CloudFront signed content, and Netlify protection**, read [Static Documentation Hosting — GitHub Pages vs AWS S3 + CloudFront](STATIC_SITE_HOSTING_GUIDE.md).
+
 ## Working architecture
 
 ```text
