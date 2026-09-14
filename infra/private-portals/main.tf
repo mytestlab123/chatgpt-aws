@@ -51,8 +51,8 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  prefix          = "agent-private-portals"
-  ip_bucket_name  = "${local.prefix}-ip-${data.aws_caller_identity.current.account_id}"
+  prefix           = "agent-private-portals"
+  ip_bucket_name   = "${local.prefix}-ip-${data.aws_caller_identity.current.account_id}"
   auth_bucket_name = "${local.prefix}-auth-${data.aws_caller_identity.current.account_id}"
 
   common_tags = {
