@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.check_aws_target import validate
-from scripts.check_repository import text_errors, workflow_errors
+from scripts.check_repository import entrypoint_errors, text_errors, workflow_errors
 from scripts.site_tools import check_site, marker_matches, prepare, verify_live
 
 SHA = 'a' * 40
@@ -25,6 +25,17 @@ class PublicSafetyTests(unittest.TestCase):
                 errors = text_errors('fixture', value)
                 self.assertTrue(errors)
                 self.assertNotIn(value, str(errors))
+
+    def test_public_entrypoints_reject_old_private_status(self):
+        self.assertTrue(entrypoint_errors('README.md', 'The source repository currently remains private.'))
+        self.assertTrue(entrypoint_errors('CONTEXT.md', '`mytestlab123/chatgpt-aws` is private and active.'))
+
+    def test_public_entrypoints_accept_public_status(self):
+        self.assertEqual(entrypoint_errors('README.md', 'This repository is public and active.'), [])
+        self.assertEqual(entrypoint_errors('docs/index.md', 'Public primary reference repository.'), [])
+
+    def test_non_entrypoint_history_can_describe_private_pattern(self):
+        self.assertEqual(entrypoint_errors('docs/learning/publishing-model.md', 'while this repository is private'), [])
 
     def test_pr_cannot_request_global_oidc(self):
         errors = workflow_errors('bad', 'on: [pull_request]\npermissions: {contents: read, id-token: write}\njobs: {}\n')
