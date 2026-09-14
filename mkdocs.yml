@@ -1,10 +1,12 @@
 site_name: ChatGPT AWS Lab
-site_description: Verified ChatGPT, AWS Core MCP, GitHub OIDC, Terraform, automation, and CI/CD lab knowledge.
-site_url: https://d36j5fck6lkl41.cloudfront.net/
-repo_url: https://github.com/mytestlab123/chatgpt-aws
-repo_name: mytestlab123/chatgpt-aws
+site_description: Reusable AWS MCP, GitHub OIDC, infrastructure and documentation engineering.
+site_url: !ENV [DOCS_SITE_URL, 'https://mytestlab123.github.io/chatgpt-aws/']
+repo_url: !ENV [DOCS_REPO_URL, 'https://github.com/mytestlab123/chatgpt-aws']
+repo_name: Source repository
 edit_uri: edit/main/docs/
 use_directory_urls: false
+exclude_docs: |
+  downloads/PROMPT.md
 
 theme:
   name: material
@@ -12,29 +14,23 @@ theme:
     - navigation.instant
     - navigation.sections
     - navigation.top
-    - navigation.tracking
     - search.suggest
     - search.highlight
     - content.code.copy
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
+    - scheme: default
       primary: indigo
-      accent: blue
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
+    - scheme: slate
       primary: indigo
-      accent: blue
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
 
 plugins:
   - search
-
 markdown_extensions:
   - admonition
   - attr_list
@@ -55,20 +51,31 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Start Here:
+      - One-URL Agent Bootstrap: PROMPT.md
       - Session Bootstrap: SESSION_BOOTSTRAP.md
-      - Fast vs Deterministic Control Paths: CONTROL_PATHS.md
-      - Selective Workflow Routing: WORKFLOW_ROUTING.md
+      - Fast vs Deterministic: CONTROL_PATHS.md
       - Static Hosting Guide: STATIC_SITE_HOSTING_GUIDE.md
-      - Public Docs Publishing: PUBLIC_DOCS_PUBLISHING.md
-      - Portable AWS + MCP Knowledge: PORTABLE_AWS_MCP_KNOWLEDGE.md
-      - Documentation Hosting: HOSTING.md
-  - Labs:
+  - Labs and Evidence:
       - Experiments: EXPERIMENTS.md
-      - Terraform Drift Demo: DRIFT_DEMO.md
-      - Automation + CI/CD Lab: AUTOMATION_CICD_LAB.md
-      - Dedicated OIDC + MCP CodeBuild: OIDC_MCP_CODEBUILD_LAB.md
-      - Step Functions + SQS OIDC/MCP: SFN_SQS_OIDC_MCP_LAB.md
-      - Cloudflare Pages + Access: CLOUDFLARE_PAGES_ACCESS_LAB.md
+      - Terraform Drift: DRIFT_DEMO.md
+      - Automation and CI/CD: AUTOMATION_CICD_LAB.md
+      - OIDC and CodeBuild: OIDC_MCP_CODEBUILD_LAB.md
+      - Step Functions and SQS: SFN_SQS_OIDC_MCP_LAB.md
+      - Cloudflare Access: CLOUDFLARE_PAGES_ACCESS_LAB.md
+      - Portable Knowledge: PORTABLE_AWS_MCP_KNOWLEDGE.md
+  - Reusable Guides:
+      - Overview: learning/index.md
+      - Control Paths: learning/control-paths.md
+      - GitHub OIDC: learning/github-oidc.md
+      - Hosting: learning/static-hosting.md
+      - Private to Public Publishing: learning/publishing-model.md
+      - Publication Integrity: learning/publication-integrity.md
+      - Review-Gated Publishing: learning/review-gated-publishing.md
+      - Cloudflare Pages: learning/cloudflare-pages-access.md
+  - Operations:
+      - Workflow Routing: WORKFLOW_ROUTING.md
+      - Hosting Runbook: HOSTING.md
+      - Legacy Two-Repo Publisher: PUBLIC_DOCS_PUBLISHING.md
 
 extra:
   generator: false
