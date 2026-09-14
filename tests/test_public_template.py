@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.check_aws_target import validate
-from scripts.check_repository import entrypoint_errors, text_errors, workflow_errors
+from scripts.check_repository import entrypoint_errors, template_errors, text_errors, workflow_errors
 from scripts.site_tools import check_site, marker_matches, prepare, verify_live
 
 SHA = 'a' * 40
@@ -19,12 +19,36 @@ class PublicSafetyTests(unittest.TestCase):
     def test_credential_patterns_do_not_echo_secret(self):
         values = ['AKIA' + 'A' * 16, 'ghp_' + 'a' * 36,
                   'github_pat_' + 'a' * 60, '-----BEGIN ' + 'PRIVATE KEY-----',
-                  'aws_secret_access_key=' + 'x' * 40]
+                  'aws_secret_access_key=' + 'x' * 40,
+                  'basic_auth_password=' + 'x' * 24,
+                  'Authorization: Basic ' + 'Q' * 24]
         for value in values:
             with self.subTest(value=value[:4]):
                 errors = text_errors('fixture', value)
                 self.assertTrue(errors)
                 self.assertNotIn(value, str(errors))
+
+    def test_reusable_template_rejects_live_identifiers(self):
+        fixtures = [
+            '123456789012',
+            'arn:aws:iam::123456789012:role/example',
+            'github-actions-chatgpt-aws-lab',
+            'chatgpt-aws-tfstate-example',
+            'chatgpt-aws-docs-123',
+            'd123456789abc.cloudfront.net',
+        ]
+        for value in fixtures:
+            with self.subTest(value=value):
+                errors = template_errors('TEMPLATE_CHECKLIST.md', value)
+                self.assertTrue(errors)
+                self.assertNotIn(value, str(errors))
+
+    def test_reusable_template_accepts_placeholders(self):
+        text = 'repo:OWNER/REPO:ref:refs/heads/main arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME> TF_STATE_BUCKET'
+        self.assertEqual(template_errors('NEW_REPO_BOOTSTRAP.md', text), [])
+
+    def test_non_template_history_can_keep_evidence_ids(self):
+        self.assertEqual(template_errors('docs/EXPERIMENTS.md', '123456789012'), [])
 
     def test_public_entrypoints_reject_old_private_status(self):
         self.assertTrue(entrypoint_errors('README.md', 'The source repository currently remains private.'))
@@ -122,6 +146,9 @@ class SiteTests(unittest.TestCase):
                 return json.dumps({'docs': [
                     {'location': 'PROMPT.html'},
                     {'location': 'PUBLIC_TEMPLATE_SECURITY.html'},
+                    {'location': 'TEMPLATE_CHECKLIST.html'},
+                    {'location': 'NEW_REPO_BOOTSTRAP.html'},
+                    {'location': 'PRIVATE_CLOUDFRONT_PORTALS.html'},
                 ]}).encode()
             return b'page content'
         with patch('scripts.site_tools.get', side_effect=fake_get):
