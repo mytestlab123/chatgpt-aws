@@ -21,7 +21,7 @@ env:
   AWS_ALLOWED_ACCOUNT_ID: ${{ vars.AWS_ALLOWED_ACCOUNT_ID }}
   AWS_EXECUTION_REPOSITORY: ${{ vars.AWS_EXECUTION_REPOSITORY }}
   AWS_LABS_ENABLED: ${{ vars.AWS_LABS_ENABLED }}
-  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  PORTAL_STATE_BUCKET_PARAMETER: /agent-private-portals/state-bucket
   PORTAL_ALLOWED_CIDR_PARAMETER: /agent-private-portals/allowed-cidr
   PORTAL_BASIC_USER_PARAMETER: /agent-private-portals/basic-user
   PORTAL_BASIC_PASSWORD_PARAMETER: /agent-private-portals/basic-password
@@ -55,16 +55,17 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           allowed-account-ids: ${{ env.AWS_ALLOWED_ACCOUNT_ID }}
 
-      - name: Load runtime access values without printing them
+      - name: Load trusted runtime configuration without printing it
         shell: bash
         run: |
           set -euo pipefail
-          : "${TF_STATE_BUCKET:?Set repository variable TF_STATE_BUCKET}"
 
+          state_bucket=$(aws ssm get-parameter --name "$PORTAL_STATE_BUCKET_PARAMETER" --query 'Parameter.Value' --output text)
           allowed_cidr=$(aws ssm get-parameter --name "$PORTAL_ALLOWED_CIDR_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
           basic_user=$(aws ssm get-parameter --name "$PORTAL_BASIC_USER_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
           basic_password=$(aws ssm get-parameter --name "$PORTAL_BASIC_PASSWORD_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
 
+          echo "::add-mask::$state_bucket"
           echo "::add-mask::$allowed_cidr"
           echo "::add-mask::$basic_user"
           echo "::add-mask::$basic_password"
@@ -81,6 +82,7 @@ jobs:
           )
 
           echo "::add-mask::$auth_sha"
+          printf 'TF_STATE_BUCKET=%s\n' "$state_bucket" >> "$GITHUB_ENV"
           printf 'TF_VAR_allowed_ipv4_cidr=%s\n' "$allowed_cidr" >> "$GITHUB_ENV"
           printf 'TF_VAR_basic_auth_sha256=%s\n' "$auth_sha" >> "$GITHUB_ENV"
 
