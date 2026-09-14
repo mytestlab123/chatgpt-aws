@@ -1,0 +1,130 @@
+name: Private CloudFront portals lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply the saved Terraform plan and run live portal smoke tests
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-cloudfront-portals-lab
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  AWS_ALLOWED_ACCOUNT_ID: ${{ vars.AWS_ALLOWED_ACCOUNT_ID }}
+  AWS_EXECUTION_REPOSITORY: ${{ vars.AWS_EXECUTION_REPOSITORY }}
+  AWS_LABS_ENABLED: ${{ vars.AWS_LABS_ENABLED }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  PORTAL_ALLOWED_CIDR_PARAMETER: /agent-private-portals/allowed-cidr
+  PORTAL_BASIC_USER_PARAMETER: /agent-private-portals/basic-user
+  PORTAL_BASIC_PASSWORD_PARAMETER: /agent-private-portals/basic-password
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  plan-apply-test:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.repository == vars.AWS_EXECUTION_REPOSITORY && vars.AWS_LABS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate explicit AWS target
+        run: python3 scripts/check_aws_target.py
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.10.5'
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ALLOWED_ACCOUNT_ID }}
+
+      - name: Load runtime access values without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${TF_STATE_BUCKET:?Set repository variable TF_STATE_BUCKET}"
+
+          allowed_cidr=$(aws ssm get-parameter --name "$PORTAL_ALLOWED_CIDR_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+          basic_user=$(aws ssm get-parameter --name "$PORTAL_BASIC_USER_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+          basic_password=$(aws ssm get-parameter --name "$PORTAL_BASIC_PASSWORD_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+
+          echo "::add-mask::$allowed_cidr"
+          echo "::add-mask::$basic_user"
+          echo "::add-mask::$basic_password"
+
+          auth_sha=$(BASIC_USER="$basic_user" BASIC_PASSWORD="$basic_password" python3 - <<'PY'
+          import base64
+          import hashlib
+          import os
+
+          raw = f"{os.environ['BASIC_USER']}:{os.environ['BASIC_PASSWORD']}".encode()
+          header = "Basic " + base64.b64encode(raw).decode()
+          print(hashlib.sha256(header.encode()).hexdigest())
+          PY
+          )
+
+          echo "::add-mask::$auth_sha"
+          printf 'TF_VAR_allowed_ipv4_cidr=%s\n' "$allowed_cidr" >> "$GITHUB_ENV"
+          printf 'TF_VAR_basic_auth_sha256=%s\n' "$auth_sha" >> "$GITHUB_ENV"
+
+      - name: Initialize and validate Terraform
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_key="state/${GITHUB_REPOSITORY}/private-portals.tfstate"
+          terraform -chdir=infra/private-portals init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${state_key}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true"
+          terraform -chdir=infra/private-portals fmt -check
+          terraform -chdir=infra/private-portals validate
+
+      - name: Save plan without printing sensitive values
+        run: terraform -chdir=infra/private-portals plan -input=false -out=tfplan >/dev/null
+
+      - name: Apply saved plan
+        if: inputs.apply
+        run: terraform -chdir=infra/private-portals apply -input=false tfplan
+
+      - name: Test both viewer access controls
+        if: inputs.apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip_url=$(terraform -chdir=infra/private-portals output -raw ip_portal_url)
+          auth_url=$(terraform -chdir=infra/private-portals output -raw basic_auth_portal_url)
+
+          # The hosted runner is expected to be outside the configured viewer /32.
+          ip_status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$ip_url/")
+          test "$ip_status" = "403"
+
+          no_auth_status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$auth_url/")
+          test "$no_auth_status" = "401"
+
+          basic_user=$(aws ssm get-parameter --name "$PORTAL_BASIC_USER_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+          basic_password=$(aws ssm get-parameter --name "$PORTAL_BASIC_PASSWORD_PARAMETER" --with-decryption --query 'Parameter.Value' --output text)
+          echo "::add-mask::$basic_user"
+          echo "::add-mask::$basic_password"
+
+          body=$(curl --silent --show-error --fail --user "$basic_user:$basic_password" "$auth_url/")
+          grep -q 'PRIVATE-PORTAL-BASIC-AUTH-PASS' <<<"$body"
+
+          echo "Private portal smoke tests PASS"
