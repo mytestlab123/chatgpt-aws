@@ -1,180 +1,121 @@
 # Documentation Hosting
 
-Status: **VERIFIED / PASS**  
-Verified: **2026-09-12**
+Status: **MIGRATING TO SAME-REPO GITHUB PAGES**  
+Last checked: **2026-09-14**
 
-## Live site
+## Preferred target
 
-`https://d36j5fck6lkl41.cloudfront.net/`
-
-The documentation source remains the repository's `docs/` directory and is rendered with **Material for MkDocs**.
-
-!!! info "Reusable learning guide"
-    This file is the implementation/evidence record for **this repository**. For a beginner-friendly tutorial comparing **GitHub Pages vs AWS S3 + CloudFront**, including private-sharing choices such as **GitHub Enterprise private Pages, Cloudflare Pages + Access, CloudFront signed content, and Netlify protection**, read [Static Documentation Hosting — GitHub Pages vs AWS S3 + CloudFront](STATIC_SITE_HOSTING_GUIDE.md).
-
-## Working architecture
+Because `mytestlab123/chatgpt-aws` is now public, the preferred long-term path is:
 
 ```text
-ChatGPT / developer
-        |
-        v
-GitHub docs/*.md + mkdocs.yml
-        |
-        v
-GitHub Actions
-        |
-        | OIDC (no static AWS keys)
-        v
-Terraform ---------------------> AWS
-        |                         |
-        |                         +-- private S3 bucket
-        |                         |   chatgpt-aws-docs-063884340510
-        |                         |
-        |                         +-- CloudFront distribution
-        |                             E2M7VGXRFDXI7H
-        |                             d36j5fck6lkl41.cloudfront.net
-        |
-        +-- mkdocs build --strict
-        +-- aws s3 sync site/ ... --delete
-        +-- CloudFront invalidation
-        +-- live curl verification
+docs/ + mkdocs.yml
+        -> public PR: credential-free strict build
+        -> reviewed main
+        -> GitHub Actions
+        -> GitHub Pages
 ```
 
-CloudFront accesses the private S3 REST origin through Origin Access Control (OAC). S3 Block Public Access remains enabled on all four controls.
+Target URL:
 
-## Why the original GitHub Pages URL returned 404
+`https://mytestlab123.github.io/chatgpt-aws/`
 
-Material for MkDocs itself was not the problem.
+## Current blocker
 
-`mkdocs build --strict` passed repeatedly, but repository metadata reported:
+Main workflow run `34794184677` proved:
+
+- unit/public-safety checks: PASS;
+- backend-free Terraform validation: PASS;
+- strict Material build: PASS;
+- Pages artifact upload: PASS;
+- Pages deployment: BLOCKED at `actions/configure-pages`.
+
+Repository metadata currently reports:
 
 ```text
 has_pages: false
 ```
 
-`actions/configure-pages@v5` therefore failed with:
+The deployment log says Pages must be enabled and configured to build using GitHub Actions.
+
+One-time setting:
 
 ```text
-Get Pages site failed
-Not Found
+Settings
+  -> Pages
+  -> Build and deployment
+  -> Source
+  -> GitHub Actions
 ```
 
-The connected GitHub app can edit repository files/workflows but does not expose the repository Pages administration setting. A private organization repository can also be subject to GitHub plan/organization Pages restrictions.
+`actions/configure-pages` cannot self-enable Pages with the normal workflow `GITHUB_TOKEN`; its `enablement` option requires a separate token/app with the required administration/Pages permissions. This repository intentionally does not introduce such a credential just to automate a one-time setting.
 
-The reusable lesson is:
+## Existing verified fallback
 
-> Separate the documentation generator from its hosting target. Material for MkDocs can build once and be published to GitHub Pages, S3 + CloudFront, or another static host.
+The previous AWS-hosted documentation remains live:
 
-## Why `use_directory_urls: false`
+`https://d36j5fck6lkl41.cloudfront.net/`
 
-The site uses a **private S3 REST endpoint** behind CloudFront, not the public S3 website endpoint.
-
-CloudFront's default root object solves `/`, but it does not automatically turn every `/page/` request into `/page/index.html` for an S3 REST origin.
-
-Therefore `mkdocs.yml` uses:
-
-```yaml
-use_directory_urls: false
-```
-
-MkDocs emits links such as:
+Architecture:
 
 ```text
-SESSION_BOOTSTRAP.html
-DRIFT_DEMO.html
-AUTOMATION_CICD_LAB.html
+GitHub main
+  -> GitHub Actions + OIDC
+  -> Terraform
+  -> private S3
+  -> CloudFront OAC
 ```
 
-This avoids subdirectory 404s without adding Lambda@Edge or CloudFront Functions.
+It remains a verified retained path while same-repo Pages is being enabled. No CloudFront/S3 deletion is part of the migration milestone.
 
-## Retained AWS resources
+## Why one public repo is now preferred
 
-| Resource | Value |
-|---|---|
-| S3 bucket | `chatgpt-aws-docs-063884340510` |
-| CloudFront distribution | `E2M7VGXRFDXI7H` |
-| CloudFront domain | `d36j5fck6lkl41.cloudfront.net` |
-| Origin Access Control | `E10YPJ26EF3Z3U` / `chatgpt-aws-docs-oac` |
-| Terraform state | `s3://chatgpt-aws-tfstate-063884340510/state/chatgpt-aws/docs-site.tfstate` |
-| IaC | `infra/docs-site/main.tf` |
-| CI/CD | `.github/workflows/docs-aws.yml` |
+When source code and documentation are both intentionally public, a separate publication repository adds a cross-repo credential and synchronization path without adding a confidentiality boundary.
 
-## Verification evidence
-
-PR #16 validated the design before merge:
+For this repo, the simpler steady state is:
 
 ```text
-mkdocs build --strict: PASS
-Terraform validate: PASS
-Terraform plan: 7 to add, 0 to change, 0 to destroy
-GitHub OIDC STS identity: PASS
+PUBLIC chatgpt-aws
+  -> code + IaC + docs + tests
+  -> GitHub Pages
 ```
 
-Main workflow run `34684093457`, attempt 2, completed successfully after one least-privilege correction.
+The older `chatgpt-aws-docs` repository remains useful as historical evidence of a review-gated private-to-public publishing design. That pattern is still appropriate when the engineering source is genuinely private.
 
-The first attempt successfully created the infrastructure and uploaded the site, but the CloudFront invalidation waiter exposed one missing read permission:
+## Migration acceptance
 
-```text
-cloudfront:GetInvalidation
-```
+Do not call same-repo Pages complete until the main workflow verifies the exact deployed revision.
 
-That permission was added to the existing `DocsSiteCloudFront` statement on `github-actions-chatgpt-aws-lab`. The rerun then passed end-to-end.
+The workflow writes `build-info.json` containing:
 
-The workflow live-tests:
+- repository name;
+- exact source commit SHA.
 
-- `/`
-- `/SESSION_BOOTSTRAP.html`
-- `/PORTABLE_AWS_MCP_KNOWLEDGE.html`
-- `/EXPERIMENTS.html`
-- `/DRIFT_DEMO.html`
-- `/AUTOMATION_CICD_LAB.html`
-- `/AMIT_AUTOMATION_CICD_LAB.html`
-- `/search/search_index.json`
+Live verification also checks:
 
-It also asserts expected content in the home page, custom visual HTML page, and search index.
+- `/`;
+- `PROMPT.html`;
+- `downloads/PROMPT.md`;
+- `AMIT_AUTOMATION_CICD_LAB.html`;
+- `search/search_index.json`.
 
-Independent AWS Core readback verified:
+This prevents a stale but reachable Pages site from being mistaken for a successful deployment.
 
-- CloudFront distribution status: `Deployed` and enabled;
-- default root object: `index.html`;
-- private S3 bucket exists in `ap-southeast-1`;
-- all four S3 public-access-block controls are `true`;
-- OAC signing behavior is `always`;
-- bucket policy permits CloudFront service read using the exact distribution condition;
-- 54 generated objects are present;
-- all navigation pages, the custom HTML page, and `search/search_index.json` are present.
+## When `chatgpt-aws-docs` can be retired
 
-## Normal update flow
+Only after:
 
-For documentation changes:
+1. same-repo Pages is enabled;
+2. the Pages workflow succeeds on `main`;
+3. exact SHA verification passes;
+4. key links are updated;
+5. the new site is stable for a short rollback window.
 
-```text
-edit docs/*.md
-      -> PR
-      -> strict MkDocs build + Terraform plan
-      -> merge main
-      -> Terraform reconcile
-      -> S3 sync
-      -> CloudFront invalidate
-      -> live URL checks
-```
+Prefer **archive first, delete later**.
 
-No manual S3 upload and no long-lived AWS access key are required.
+## Reusable hosting lesson
 
-## For another ChatGPT session
+> Separate the documentation generator from its hosting target, and separate a successful build from a verified live deployment.
 
-Do not assume the old GitHub Pages URL is the live site.
+Material for MkDocs can be published to GitHub Pages, S3 + CloudFront, or another static host. Hosting choice should follow visibility, authentication, and operational requirements rather than changing the knowledge layout.
 
-Use this order:
-
-1. Read repo authority files (`AGENTS.md`, `CONTEXT.md`, `SPEC.md`).
-2. Read `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md`.
-3. Read this file for the docs hosting path.
-4. Verify AWS identity before mutation.
-5. Treat `infra/docs-site/` as desired state for hosting resources.
-6. Treat `.github/workflows/docs-aws.yml` as the publication and live-verification path.
-7. Use AWS Core for independent readback; do not silently mutate Terraform-owned hosting resources through MCP.
-
-## GitHub Pages later
-
-GitHub Pages remains optional. If it is eventually enabled for the repository, Material can be deployed there too. Do not change the Markdown knowledge layout just to switch hosting targets.
+For a broader comparison, read `STATIC_SITE_HOSTING_GUIDE.md`.
