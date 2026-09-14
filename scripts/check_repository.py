@@ -13,6 +13,8 @@ SECRET_PATTERNS = (
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{30,}\b"),
     re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----"),
     re.compile(r"(?i)aws_secret_access_key\s*[:=]\s*['\"]?[A-Za-z0-9/+=]{30,}"),
+    re.compile(r"(?i)\b(?:password|passwd|basic_auth_password)\s*[:=]\s*['\"]?[^'\"\s]{16,}"),
+    re.compile(r"(?i)authorization\s*:\s*basic\s+[A-Za-z0-9+/=]{16,}"),
 )
 AWS_GUARDS = (
     "github.event_name == 'workflow_dispatch'",
@@ -32,12 +34,36 @@ STALE_PUBLIC_CLAIMS = (
     'private primary knowledge source',
     'while this repository is private',
 )
+REUSABLE_TEMPLATE_FILES = {
+    'PROMPT.md',
+    'TEMPLATE_CHECKLIST.md',
+    'NEW_REPO_BOOTSTRAP.md',
+    'docs/PRIVATE_CLOUDFRONT_PORTALS.md',
+    'infra/private-portals/main.tf',
+    '.github/workflows/private-portals-lab.yml',
+}
+TEMPLATE_LIVE_PATTERNS = (
+    re.compile(r"\b\d{10,14}\b"),
+    re.compile(r"arn:aws:iam::\d{12}:role/"),
+    re.compile(r"github-actions-chatgpt-aws", re.I),
+    re.compile(r"chatgpt-aws-tfstate-", re.I),
+    re.compile(r"chatgpt-aws-docs-\d", re.I),
+    re.compile(r"\bd[a-z0-9]{8,}\.cloudfront\.net\b", re.I),
+)
 
 
 def text_errors(name: str, text: str) -> list[str]:
     # Never print a matched credential or its surrounding source line.
     return [f"{name}: possible credential pattern {i + 1}"
             for i, pattern in enumerate(SECRET_PATTERNS) if pattern.search(text)]
+
+
+def template_errors(name: str, text: str) -> list[str]:
+    """Reusable files must not accidentally carry live lab/account identifiers."""
+    if name not in REUSABLE_TEMPLATE_FILES:
+        return []
+    return [f"{name}: reusable template contains live/reference identifier pattern {i + 1}"
+            for i, pattern in enumerate(TEMPLATE_LIVE_PATTERNS) if pattern.search(text)]
 
 
 def entrypoint_errors(name: str, text: str) -> list[str]:
@@ -101,6 +127,7 @@ def check(root: Path) -> list[str]:
             errors.append(f'{name}: binary files need an explicit scan strategy')
             continue
         errors.extend(text_errors(name, text))
+        errors.extend(template_errors(name, text))
         errors.extend(entrypoint_errors(name, text))
         if name.startswith('.github/workflows/') and name.endswith(('.yml', '.yaml')):
             errors.extend(workflow_errors(name, text))
@@ -109,5 +136,5 @@ def check(root: Path) -> list[str]:
 
 if __name__ == '__main__':
     problems = check(Path(__file__).resolve().parents[1])
-    print('\n'.join(problems) if problems else 'PASS: current tracked files and workflow guardrails')
+    print('\n'.join(problems) if problems else 'PASS: current tracked files, reusable template, and workflow guardrails')
     raise SystemExit(bool(problems))
