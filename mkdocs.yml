@@ -52,6 +52,7 @@ nav:
   - Home: index.md
   - Start Here:
       - One-URL Agent Bootstrap: PROMPT.md
+      - Public Template Security: PUBLIC_TEMPLATE_SECURITY.md
       - Session Bootstrap: SESSION_BOOTSTRAP.md
       - Fast vs Deterministic: CONTROL_PATHS.md
       - Static Hosting Guide: STATIC_SITE_HOSTING_GUIDE.md
@@ -75,7 +76,7 @@ nav:
   - Operations:
       - Workflow Routing: WORKFLOW_ROUTING.md
       - Hosting Runbook: HOSTING.md
-      - Legacy Two-Repo Publisher: PUBLIC_DOCS_PUBLISHING.md
+      - Optional Private-to-Public Publisher: PUBLIC_DOCS_PUBLISHING.md
 
 extra:
   generator: false
