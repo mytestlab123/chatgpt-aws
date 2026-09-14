@@ -119,7 +119,10 @@ class SiteTests(unittest.TestCase):
             if 'build-info.json' in url:
                 return json.dumps({'source_sha': SHA, 'repository': REPO}).encode()
             if 'search_index.json' in url:
-                return json.dumps({'docs': [{'location': 'PROMPT.html'}]}).encode()
+                return json.dumps({'docs': [
+                    {'location': 'PROMPT.html'},
+                    {'location': 'PUBLIC_TEMPLATE_SECURITY.html'},
+                ]}).encode()
             return b'page content'
         with patch('scripts.site_tools.get', side_effect=fake_get):
             verify_live('https://example.test/project/', SHA, REPO, attempts=1, delay=0)
