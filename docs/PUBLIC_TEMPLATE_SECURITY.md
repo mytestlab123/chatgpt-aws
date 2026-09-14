@@ -20,6 +20,16 @@ REVIEWED main
   -> AWS MCP verification
 ```
 
+## v1 reusable entrypoints
+
+Use these repository-root files when bootstrapping another project:
+
+- `PROMPT.md` — canonical one-URL agent handoff;
+- `TEMPLATE_CHECKLIST.md` — values, identities, settings, and evidence that must be replaced or reverified;
+- `NEW_REPO_BOOTSTRAP.md` — AWS MCP identity verification through repository-specific OIDC, Terraform delivery, and independent readback.
+
+The reusable-template scanner applies stricter checks to these entrypoints and the private-portal example so reference account identifiers, IAM role ARNs, old lab resource names, static credentials, or unsafe workflow patterns do not silently become copy/paste defaults.
+
 ## Controls enforced in this repo
 
 | Control | Current implementation |
@@ -34,6 +44,7 @@ REVIEWED main
 | Checkout credentials | `persist-credentials: false` |
 | Terraform PR validation | Backend-free fmt/validate; no live AWS identity required |
 | Public-file scan | Common credential/state/plan patterns are rejected from the tracked tree |
+| Reusable-template scan | Copyable v1 files reject reference-account/role/resource identities and credential patterns |
 | Documentation | Strict MkDocs build, local-link/output checks, exact deployment marker |
 | Pages verification | Live check requires the exact repository + source commit in `build-info.json` |
 
@@ -69,37 +80,24 @@ Observed on **2026-09-14**:
 | Item | Observation |
 |---|---|
 | Repository visibility | Public |
-| Pages | `has_pages=false` |
-| Pages build/artifact | Passed on main run `34794184677` |
-| Pages deploy | Blocked because Pages is not enabled/configured yet |
-| Repository rulesets | Rulesets API returned `[]` |
-| Branch protection | Not readable through the connected GitHub App; treat as unverified |
-| Public PR validation | Passed in PR #43 |
-| Live AWS from PR | Removed by PR #43 |
+| Pages | Enabled and verified; same-repo Pages is the primary public docs path |
+| Pages deployment | Build, deploy, and exact live-commit verification pass on `main` |
+| Branch protection | `main` currently reports `protected: false`; this is the largest remaining repository-settings gap before calling the reference a hardened v1 template |
+| Public PR validation | Credential-free repository, documentation, unit, and backend-free Terraform checks |
+| Live AWS from PR | Disallowed by repository workflow guardrails |
 
-The Pages failure is a repository setting issue, not a MkDocs build failure.
+Code cannot compensate for missing branch/ruleset protection. Configure that repository setting before treating the template as protected against direct writes to `main`.
 
-## One-time Pages step
+## Private static portal rule
 
-In this repository:
+A private S3 origin is not the same as a private viewer site.
 
-```text
-Settings
-  -> Pages
-  -> Build and deployment
-  -> Source
-  -> GitHub Actions
-```
+The optional `infra/private-portals/` lab demonstrates two small viewer controls:
 
-Then rerun **Repository checks and Pages** on `main`.
+- CloudFront + AWS WAF IP allowlist;
+- CloudFront + CloudFront Function Basic Auth.
 
-Do not call the migration complete until the workflow verifies:
-
-- `build-info.json` contains the exact `main` commit SHA;
-- `PROMPT.html` loads;
-- `downloads/PROMPT.md` loads;
-- the custom HTML lab page loads;
-- the search index contains the bootstrap page.
+Both keep runtime access values outside Git and keep S3 private through OAC. Basic Auth is a lab/simple-portal pattern, not an enterprise identity system. See `HOSTING.md` for the concise comparison and security caveats.
 
 ## Public data rule
 
