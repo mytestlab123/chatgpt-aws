@@ -8,7 +8,7 @@ Give a new ChatGPT/Codex/agent this file first:
 
 **https://github.com/mytestlab123/chatgpt-aws/blob/main/PROMPT.md**
 
-`PROMPT.md` is the canonical portable bootstrap. It explains identity checks, AWS MCP vs GitHub OIDC/IaC, public-repo safety, and how to bootstrap a new repository without copying this lab's identities.
+`PROMPT.md` is the canonical portable bootstrap.
 
 ## Proven operating model
 
@@ -20,32 +20,24 @@ ChatGPT / agent
 
 > **MCP discovers and verifies; Git/IaC declares; OIDC CI/CD applies.**
 
-Public pull requests are intentionally credential-free. Live AWS workflows are manual, main-only, explicitly bound jobs.
+Public pull requests are credential-free. Live AWS workflows are manual, main-only, explicitly bound jobs.
 
 ## Documentation
 
-Source: `docs/` + `mkdocs.yml`
+Primary public documentation:
 
-Same-repo GitHub Pages target:
+**https://mytestlab123.github.io/chatgpt-aws/**
 
-`https://mytestlab123.github.io/chatgpt-aws/`
+Same-repo GitHub Pages is now **enabled and verified**. Cutover run `34796005818` completed build, deployment, and exact live commit verification successfully, and repository metadata reports `has_pages=true`.
 
-Current migration status:
-
-- repository is **public**;
-- strict Material build and Pages artifact upload pass;
-- same-repo Pages still needs the one-time repository setting **Settings -> Pages -> Source: GitHub Actions**;
-- the existing CloudFront docs site remains available at `https://d36j5fck6lkl41.cloudfront.net/` until the new Pages site is verified;
-- `mytestlab123/chatgpt-aws-docs` remains a temporary legacy/rollback publication path and should not be deleted yet.
+The older CloudFront site and `mytestlab123/chatgpt-aws-docs` are retained temporarily as rollback/historical paths. They are no longer required for the normal public-repo publishing model.
 
 ## Template security
 
-Code controls are only part of the boundary. For a reusable public repo also configure `main` protection/rulesets, minimal Actions token permissions, exact repository-scoped AWS OIDC trust, and Pages settings.
-
-See `docs/PUBLIC_TEMPLATE_SECURITY.md`.
+See `docs/PUBLIC_TEMPLATE_SECURITY.md`. A reusable public repo should also use `main` protection/rulesets, minimal Actions token permissions, exact repository-scoped AWS OIDC trust, and explicit Pages settings.
 
 ## Do not copy identities
 
-Historical account IDs, role ARNs, resource names, workflow runs, and retained lab resources in this repository are evidence only. A new repository should create its own OIDC role/trust, state keys, variables, and resource names.
+Historical account IDs, role ARNs, resource names, workflow runs, and retained lab resources are evidence only. A new repository should create its own OIDC role/trust, state keys, variables, and resource names.
 
-Keep experiments reversible, low-cost, reviewable, and evidence-backed. Never commit credentials, authentication state, Terraform state, or raw plan files.
+Never commit credentials, authentication state, Terraform state, or raw plan files.

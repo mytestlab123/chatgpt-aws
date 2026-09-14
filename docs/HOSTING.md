@@ -1,11 +1,13 @@
 # Documentation Hosting
 
-Status: **MIGRATING TO SAME-REPO GITHUB PAGES**  
+Status: **VERIFIED / SAME-REPO GITHUB PAGES**  
 Last checked: **2026-09-14**
 
-## Preferred target
+## Primary site
 
-Because `mytestlab123/chatgpt-aws` is now public, the preferred long-term path is:
+`https://mytestlab123.github.io/chatgpt-aws/`
+
+Architecture:
 
 ```text
 docs/ + mkdocs.yml
@@ -15,63 +17,35 @@ docs/ + mkdocs.yml
         -> GitHub Pages
 ```
 
-Target URL:
+## Verification evidence
 
-`https://mytestlab123.github.io/chatgpt-aws/`
+After the one-time repository setting **Settings -> Pages -> Source: GitHub Actions** was enabled, workflow run `34796005818` attempt 2 completed successfully.
 
-## Current blocker
-
-Main workflow run `34794184677` proved:
+Verified stages:
 
 - unit/public-safety checks: PASS;
 - backend-free Terraform validation: PASS;
 - strict Material build: PASS;
 - Pages artifact upload: PASS;
-- Pages deployment: BLOCKED at `actions/configure-pages`.
+- `actions/configure-pages`: PASS;
+- Pages deployment: PASS;
+- exact live commit verification: PASS.
 
-Repository metadata currently reports:
-
-```text
-has_pages: false
-```
-
-The deployment log says Pages must be enabled and configured to build using GitHub Actions.
-
-One-time setting:
+Repository metadata also reports:
 
 ```text
-Settings
-  -> Pages
-  -> Build and deployment
-  -> Source
-  -> GitHub Actions
+has_pages: true
 ```
 
-`actions/configure-pages` cannot self-enable Pages with the normal workflow `GITHUB_TOKEN`; its `enablement` option requires a separate token/app with the required administration/Pages permissions. This repository intentionally does not introduce such a credential just to automate a one-time setting.
+The workflow writes `build-info.json` containing the repository name and exact source commit SHA, then verifies the live site serves that same revision. It also checks the home page, `PROMPT.html`, downloadable `PROMPT.md`, custom HTML content, the public-template security guide, and the search index.
 
-## Existing verified fallback
+This prevents a stale but reachable site from being mistaken for a successful deployment.
 
-The previous AWS-hosted documentation remains live:
-
-`https://d36j5fck6lkl41.cloudfront.net/`
-
-Architecture:
-
-```text
-GitHub main
-  -> GitHub Actions + OIDC
-  -> Terraform
-  -> private S3
-  -> CloudFront OAC
-```
-
-It remains a verified retained path while same-repo Pages is being enabled. No CloudFront/S3 deletion is part of the migration milestone.
-
-## Why one public repo is now preferred
+## Why one public repo is preferred here
 
 When source code and documentation are both intentionally public, a separate publication repository adds a cross-repo credential and synchronization path without adding a confidentiality boundary.
 
-For this repo, the simpler steady state is:
+Steady state:
 
 ```text
 PUBLIC chatgpt-aws
@@ -79,43 +53,22 @@ PUBLIC chatgpt-aws
   -> GitHub Pages
 ```
 
-The older `chatgpt-aws-docs` repository remains useful as historical evidence of a review-gated private-to-public publishing design. That pattern is still appropriate when the engineering source is genuinely private.
+## Retained legacy paths
 
-## Migration acceptance
+The previous AWS-hosted documentation remains available at:
 
-Do not call same-repo Pages complete until the main workflow verifies the exact deployed revision.
+`https://d36j5fck6lkl41.cloudfront.net/`
 
-The workflow writes `build-info.json` containing:
+The older `mytestlab123/chatgpt-aws-docs` repository also remains available as historical evidence of a review-gated private-to-public publishing model.
 
-- repository name;
-- exact source commit SHA.
+Neither is required for the normal public single-repo path now. Keep them for a short rollback window, then prefer **archive first, delete later** if they are no longer needed.
 
-Live verification also checks:
-
-- `/`;
-- `PROMPT.html`;
-- `downloads/PROMPT.md`;
-- `AMIT_AUTOMATION_CICD_LAB.html`;
-- `search/search_index.json`.
-
-This prevents a stale but reachable Pages site from being mistaken for a successful deployment.
-
-## When `chatgpt-aws-docs` can be retired
-
-Only after:
-
-1. same-repo Pages is enabled;
-2. the Pages workflow succeeds on `main`;
-3. exact SHA verification passes;
-4. key links are updated;
-5. the new site is stable for a short rollback window.
-
-Prefer **archive first, delete later**.
+The private-to-public two-repo pattern is still valid for genuinely private engineering repositories.
 
 ## Reusable hosting lesson
 
-> Separate the documentation generator from its hosting target, and separate a successful build from a verified live deployment.
+> Separate a successful documentation build from a verified live deployment.
 
-Material for MkDocs can be published to GitHub Pages, S3 + CloudFront, or another static host. Hosting choice should follow visibility, authentication, and operational requirements rather than changing the knowledge layout.
+For a public learning/template repo, same-repo GitHub Pages is the simplest architecture when everything committed is safe to disclose. For private or sensitive engineering, retain a private source boundary and publish only an intentional subset.
 
 For a broader comparison, read `STATIC_SITE_HOSTING_GUIDE.md`.
