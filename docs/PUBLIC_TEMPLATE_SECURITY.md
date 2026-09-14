@@ -54,14 +54,21 @@ These are code-level controls. They do not prove the settings below.
 
 ### GitHub
 
-Recommended for a reusable public template:
+Recommended defaults for a reusable public template:
 
-1. **Protect `main`** using a ruleset or branch protection.
-2. Require the repository validation workflow before merge.
-3. Keep default GitHub Actions token permissions minimal.
-4. Do not allow workflows to approve pull requests unless there is a reviewed need.
-5. Configure **Settings -> Pages -> Source: GitHub Actions** when publishing from the same repo.
-6. Review organization-level Actions policies because they can narrow or widen what workflows may use.
+1. Keep default GitHub Actions token permissions minimal.
+2. Do not allow workflows to approve pull requests unless there is a reviewed need.
+3. Configure **Settings -> Pages -> Source: GitHub Actions** when publishing from the same repo.
+4. Review organization-level Actions policies because they can narrow or widen what workflows may use.
+5. For production/team repositories, enable a `main` ruleset or branch protection and require validation before merge.
+
+### Accepted risk in this reference lab
+
+This personal, owner-operated learning repository intentionally leaves `main` unprotected. That means a repository owner with write access can bypass the PR path and write directly to `main`.
+
+This is an **accepted lab risk**, not a blocker for the v1 reference architecture. The security model still relies on separate live-AWS workflow guards: manual dispatch, exact repository binding, `main` ref checking, explicit lab enablement, short-lived OIDC, target-account validation, and independent AWS MCP readback.
+
+Do not copy this acceptance blindly into shared, production, customer, government, or other sensitive repositories. In those environments, protect `main` and require reviewed CI checks.
 
 ### AWS
 
@@ -82,11 +89,9 @@ Observed on **2026-09-14**:
 | Repository visibility | Public |
 | Pages | Enabled and verified; same-repo Pages is the primary public docs path |
 | Pages deployment | Build, deploy, and exact live-commit verification pass on `main` |
-| Branch protection | `main` currently reports `protected: false`; this is the largest remaining repository-settings gap before calling the reference a hardened v1 template |
+| Branch protection | `main` reports `protected: false`; explicitly accepted for this owner-operated personal lab |
 | Public PR validation | Credential-free repository, documentation, unit, and backend-free Terraform checks |
 | Live AWS from PR | Disallowed by repository workflow guardrails |
-
-Code cannot compensate for missing branch/ruleset protection. Configure that repository setting before treating the template as protected against direct writes to `main`.
 
 ## Private static portal rule
 
