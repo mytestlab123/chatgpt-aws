@@ -1,54 +1,51 @@
 # ChatGPT AWS Lab
 
-Personal LAB for proving how ChatGPT can inspect, mutate, provision, verify, and document AWS through two independent control paths.
+Public personal lab/reference for working with **ChatGPT + AWS MCP + GitHub Actions + OIDC + Terraform** without requiring a local CLI for the normal workflow.
 
-## Start Here — One URL
+## Start here — one URL
 
-For a new ChatGPT/Codex/agent session, start with:
+Give a new ChatGPT/Codex/agent this file first:
 
-**`PROMPT.md`**  
-`https://github.com/mytestlab123/chatgpt-aws/blob/main/PROMPT.md`
+**https://github.com/mytestlab123/chatgpt-aws/blob/main/PROMPT.md**
 
-`PROMPT.md` is the canonical portable bootstrap. It explains the verified operating model, startup identity checks, AWS MCP vs GitHub OIDC/IaC decision, security baseline, single-public-repository mode, and how to bootstrap a new AWS repository without copying this lab's identities.
+`PROMPT.md` is the canonical portable bootstrap. It explains identity checks, AWS MCP vs GitHub OIDC/IaC, public-repo safety, and how to bootstrap a new repository without copying this lab's identities.
 
-After that, read repository-specific authority such as `AGENTS.md`, `CONTEXT.md`, `SPEC.md`, and the active Issue/PR as needed.
+## Proven operating model
 
-## Documentation
-
-The `docs/` knowledge base is published with **Material for MkDocs**.
-
-- **Live site:** `https://d36j5fck6lkl41.cloudfront.net/`
-- Source: `docs/`
-- Configuration: `mkdocs.yml`
-- AWS hosting IaC: `infra/docs-site/`
-- Build/deploy workflow: `.github/workflows/docs-aws.yml`
-- Hosting evidence/runbook: `docs/HOSTING.md`
-
-The source repository currently remains private. The generated documentation is served publicly through CloudFront from a private S3 bucket protected by Origin Access Control (OAC).
-
-The existing Markdown paths remain stable so other sessions can continue to reference files such as `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` and `docs/SESSION_BOOTSTRAP.md` directly.
-
-## Proven control paths
-
-1. **Direct MCP:** ChatGPT -> AWS Core MCP -> AWS APIs for discovery, diagnosis, bounded experiments, and independent verification.
-2. **GitOps/IaC:** ChatGPT -> GitHub -> GitHub Actions -> OIDC -> Terraform -> AWS for durable reviewed state.
-
-Preferred rule:
+```text
+ChatGPT / agent
+  ├─ AWS MCP -> inspect / diagnose / verify
+  └─ GitHub -> IaC -> Actions -> OIDC -> AWS
+```
 
 > **MCP discovers and verifies; Git/IaC declares; OIDC CI/CD applies.**
 
-## Template direction
+Public pull requests are intentionally credential-free. Live AWS workflows are manual, main-only, explicitly bound jobs.
 
-For a personal learning project, one **public** repository can contain IaC, workflows, docs, and GitHub Pages when all committed content is safe for public disclosure.
+## Documentation
 
-For private/company/sensitive work, keep the engineering repository private and publish only an intentional curated subset when public documentation is required.
+Source: `docs/` + `mkdocs.yml`
 
-Do not reuse this lab's AWS account IDs, role ARNs, resource names, or OIDC roles in another repository. Create new repo-specific trust and state.
+Same-repo GitHub Pages target:
 
-## Current docs-repository transition
+`https://mytestlab123.github.io/chatgpt-aws/`
 
-`mytestlab123/chatgpt-aws-docs` remains a publication target while this repository is private. The curated source already exists under `public-docs/`, so there is nothing to manually merge back before a future consolidation.
+Current migration status:
 
-Do not delete the docs repository until a replacement public repository is live, GitHub Pages is verified there, and links are updated. See `PROMPT.md` for the retirement checklist.
+- repository is **public**;
+- strict Material build and Pages artifact upload pass;
+- same-repo Pages still needs the one-time repository setting **Settings -> Pages -> Source: GitHub Actions**;
+- the existing CloudFront docs site remains available at `https://d36j5fck6lkl41.cloudfront.net/` until the new Pages site is verified;
+- `mytestlab123/chatgpt-aws-docs` remains a temporary legacy/rollback publication path and should not be deleted yet.
 
-Keep experiments reversible, low-cost, reviewable, and evidence-backed. Never commit credentials or authentication state.
+## Template security
+
+Code controls are only part of the boundary. For a reusable public repo also configure `main` protection/rulesets, minimal Actions token permissions, exact repository-scoped AWS OIDC trust, and Pages settings.
+
+See `docs/PUBLIC_TEMPLATE_SECURITY.md`.
+
+## Do not copy identities
+
+Historical account IDs, role ARNs, resource names, workflow runs, and retained lab resources in this repository are evidence only. A new repository should create its own OIDC role/trust, state keys, variables, and resource names.
+
+Keep experiments reversible, low-cost, reviewable, and evidence-backed. Never commit credentials, authentication state, Terraform state, or raw plan files.
