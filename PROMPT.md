@@ -124,7 +124,7 @@ For private static content, this repository also demonstrates:
 1. CloudFront + AWS WAF IP allowlist;
 2. CloudFront + CloudFront Function Basic Auth.
 
-Both keep S3 private through Origin Access Control and keep runtime access values outside Git. Read `docs/PRIVATE_CLOUDFRONT_PORTALS.md`.
+Both keep S3 private through Origin Access Control and keep runtime access values outside Git. Read `docs/HOSTING.md` for the concise design and `infra/private-portals/` for the Terraform example.
 
 Treat Basic Auth as a small lab/demo pattern. Prefer Cognito/enterprise IdP or signed-cookie designs when you need named users, MFA, revocation, lifecycle, or stronger auditability.
 
