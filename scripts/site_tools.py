@@ -41,8 +41,9 @@ def check_site(site: Path, base_url: str) -> list[str]:
     site = site.resolve()
     errors = []
     base = urlsplit(base_url.rstrip('/') + '/')
-    required = ['index.html', 'PROMPT.html', 'downloads/PROMPT.md',
-                'AMIT_AUTOMATION_CICD_LAB.html', 'search/search_index.json', 'build-info.json']
+    required = ['index.html', 'PROMPT.html', 'PUBLIC_TEMPLATE_SECURITY.html',
+                'downloads/PROMPT.md', 'AMIT_AUTOMATION_CICD_LAB.html',
+                'search/search_index.json', 'build-info.json']
     for rel in required:
         if not (site / rel).is_file():
             errors.append(f'Missing site output: {rel}')
@@ -71,8 +72,11 @@ def check_site(site: Path, base_url: str) -> list[str]:
     index = site / 'search/search_index.json'
     if index.exists():
         entries = json.loads(index.read_text(encoding='utf-8')).get('docs', [])
-        if not entries or not any('PROMPT.html' in entry.get('location', '') for entry in entries):
+        locations = [entry.get('location', '') for entry in entries]
+        if not any('PROMPT.html' in location for location in locations):
             errors.append('Search index does not include the agent bootstrap')
+        if not any('PUBLIC_TEMPLATE_SECURITY.html' in location for location in locations):
+            errors.append('Search index does not include the public template security guide')
     return sorted(set(errors))
 
 
@@ -94,15 +98,19 @@ def verify_live(base: str, sha: str, repository: str, attempts: int = 18, delay:
             marker = json.loads(get(marker_url))
             if not marker_matches(marker, sha, repository):
                 raise ValueError('Site is reachable but serves a different commit')
-            for path in ('', 'PROMPT.html', 'AMIT_AUTOMATION_CICD_LAB.html', 'downloads/PROMPT.md'):
+            for path in ('', 'PROMPT.html', 'PUBLIC_TEMPLATE_SECURITY.html',
+                         'AMIT_AUTOMATION_CICD_LAB.html', 'downloads/PROMPT.md'):
                 if not get(base + path + '?commit=' + sha):
                     raise ValueError('Empty live page')
             search = json.loads(get(base + 'search/search_index.json?commit=' + sha))
-            if not any('PROMPT.html' in entry.get('location', '') for entry in search.get('docs', [])):
+            locations = [entry.get('location', '') for entry in search.get('docs', [])]
+            if not any('PROMPT.html' in location for location in locations):
                 raise ValueError('Live search index lacks PROMPT.html')
+            if not any('PUBLIC_TEMPLATE_SECURITY.html' in location for location in locations):
+                raise ValueError('Live search index lacks PUBLIC_TEMPLATE_SECURITY.html')
             if not marker_matches(json.loads(get(marker_url)), sha, repository):
                 raise ValueError('Site changed during verification')
-            print('PASS: live commit, bootstrap, custom HTML and search index')
+            print('PASS: live commit, bootstrap, security guide, custom HTML and search index')
             return
         except (URLError, ValueError, TimeoutError, OSError) as exc:
             print(f'Pages check {attempt}/{attempts}: {type(exc).__name__}')

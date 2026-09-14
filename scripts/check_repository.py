@@ -20,12 +20,33 @@ AWS_GUARDS = (
     "github.repository == vars.AWS_EXECUTION_REPOSITORY",
     "vars.AWS_LABS_ENABLED == 'true'",
 )
+PUBLIC_ENTRYPOINTS = {
+    'README.md',
+    'CONTEXT.md',
+    'docs/index.md',
+    'docs/HOSTING.md',
+}
+STALE_PUBLIC_CLAIMS = (
+    'source repository currently remains private',
+    '`mytestlab123/chatgpt-aws` is private and active',
+    'private primary knowledge source',
+    'while this repository is private',
+)
 
 
 def text_errors(name: str, text: str) -> list[str]:
     # Never print a matched credential or its surrounding source line.
     return [f"{name}: possible credential pattern {i + 1}"
             for i, pattern in enumerate(SECRET_PATTERNS) if pattern.search(text)]
+
+
+def entrypoint_errors(name: str, text: str) -> list[str]:
+    """Prevent public-facing status pages from reverting to the old private-repo claim."""
+    if name not in PUBLIC_ENTRYPOINTS:
+        return []
+    lowered = text.lower()
+    return [f'{name}: stale private-repository status claim'
+            for phrase in STALE_PUBLIC_CLAIMS if phrase.lower() in lowered]
 
 
 def workflow_errors(name: str, text: str) -> list[str]:
@@ -80,6 +101,7 @@ def check(root: Path) -> list[str]:
             errors.append(f'{name}: binary files need an explicit scan strategy')
             continue
         errors.extend(text_errors(name, text))
+        errors.extend(entrypoint_errors(name, text))
         if name.startswith('.github/workflows/') and name.endswith(('.yml', '.yaml')):
             errors.extend(workflow_errors(name, text))
     return errors
