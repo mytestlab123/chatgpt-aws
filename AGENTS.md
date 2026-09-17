@@ -2,15 +2,19 @@
 
 ## Canonical bootstrap
 
-Read `PROMPT.md` first. It is the portable entrypoint for the AWS MCP + GitHub OIDC/IaC operating model, security baseline, and new-repository bootstrap.
+Read `PROMPT.md` first for a cold start. It is the portable entrypoint for the AWS MCP + GitHub OIDC/IaC operating model, security baseline, and new-repository bootstrap.
 
-## Read Order
+For warm continuation, use the named Issue/PR, latest relevant authorized delta, and current HEAD. Do not force the full bootstrap/read list on every handoff.
+
+## Bootstrap / Recovery Order
+
+Use this order only when the session lacks usable repository context, governing files materially changed, or state is stale/incomplete/contradictory:
 
 1. `PROMPT.md`
 2. `AGENTS.md`
 3. `CONTEXT.md`
 4. `INIT.md` only when repository initialization is incomplete
-5. `CHATGPT.md` for ChatGPT/Codex/GitHub collaboration
+5. `CHATGPT.md` when ChatGPT/Codex/GitHub collaboration or connector-safety rules matter
 6. `docs/PORTABLE_AWS_MCP_KNOWLEDGE.md` for detailed AWS/MCP/OIDC evidence
 7. `docs/SESSION_BOOTSTRAP.md` for cross-session handoff
 8. `docs/HOSTING.md` when publication/hosting matters

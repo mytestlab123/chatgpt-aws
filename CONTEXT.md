@@ -1,26 +1,25 @@
 # Context
 
 Status: ACTIVE
+Updated: 2026-09-17
 
 ## Project identity
 
 - Project: ChatGPT AWS Lab
 - Primary repository: `mytestlab123/chatgpt-aws`
+- Current merged `main`: `2f413633332caf34d45b7896191b3276533061c4`
 - Visibility: **public**
 - Context: PERSONAL
 - Environment: LAB
-- Canonical agent entrypoint: `PROMPT.md`
+- Canonical cold-start entrypoint: `PROMPT.md`
 
 ## Current truth
 
 - `mytestlab123/chatgpt-aws` is public and active.
-- PR #43 hardened the public-repo workflow model: PR checks are credential-free; live AWS workflows are manual, main-only, explicitly bound OIDC jobs.
-- Repository checks include pinned GitHub Actions, non-persistent checkout credentials, public-content pattern checks, unit tests, backend-free Terraform validation, strict MkDocs build, and Pages freshness tooling.
-- Existing AWS lab resources and historical evidence are reference material; new repositories must create their own identities, trust, state, and resource names.
-- Same-repo GitHub Pages is enabled and live at `https://mytestlab123.github.io/chatgpt-aws/`.
-- Workflow run `34796005818` attempt 2 completed build, Pages deployment, and exact live commit verification successfully.
-- Repository metadata reports `has_pages=true`.
-- The older CloudFront documentation path and `mytestlab123/chatgpt-aws-docs` remain temporary rollback/historical paths, not the preferred publishing architecture.
+- Public-repo workflow model remains credential-free PR checks plus deliberate main-only live AWS workflows with explicit OIDC binding.
+- Same-repo GitHub Pages remains the preferred documentation architecture.
+- The older CloudFront documentation path and `mytestlab123/chatgpt-aws-docs` remain rollback/historical paths, not the preferred publishing architecture.
+- Historical AWS lab resources and proof records are examples/evidence; current AWS identity and runtime state must be re-verified before any new live action.
 
 ## Control-path decision
 
@@ -34,25 +33,21 @@ For this public repo, unreviewed PR code must not receive the AWS execution iden
 
 ## Repository-settings gap
 
-Repository code cannot prove all security settings.
-
-Observed on 2026-09-14:
-
-- repository is public;
-- GitHub Pages is enabled and verified;
-- repository rulesets API returned no rulesets;
-- branch-protection details were not readable through the connected GitHub App, so protection status remains unverified.
-
-See `docs/PUBLIC_TEMPLATE_SECURITY.md` for the code-vs-settings checklist.
+Repository code cannot prove all security settings. Current repository settings must be verified separately when a task depends on them; historical observations are not standing proof.
 
 ## Active work
 
-- Issue #50 records the verified same-repo Pages cutover and final documentation status.
-- Issue #42 can close after the status update is merged and the resulting main revision is verified live.
+- Issue #53 — simplify bootstrap routing and warm continuation.
+
+## Current boundary
+
+- This governance issue is documentation-only.
+- No AWS, Terraform, OIDC, workflow, Pages, CloudFront, repository-visibility or external-resource mutation is authorized by it.
 
 ## Next action
 
-1. Keep `PROMPT.md` as the one-URL bootstrap for future sessions/repos.
-2. Reuse the public-repo workflow safety model instead of repeating connectivity experiments.
-3. Keep the legacy docs repo/CloudFront path for a short rollback window; archive before considering deletion.
-4. For any future AWS mutation milestone, create/use a dedicated Issue and verify the session's AWS identity first.
+Review Issue #53 / its PR. Future AWS milestones must use a dedicated owning Issue and re-verify the session's AWS identity first.
+
+## Continuation
+
+For a known objective, use the named Issue/PR, latest relevant authorized delta, and current HEAD. Use `PROMPT.md` plus the broader bootstrap set only when a real cold-start/recovery trigger applies.
